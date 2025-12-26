@@ -1,23 +1,23 @@
--- TESTE DE ABERTURA GOLD HUB
+-- GOLD HUB | Sea 1 Test
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
 local Window = OrionLib:MakeWindow({
-    Name = "GOLD HUB | TESTE", 
+    Name = "GOLD HUB | SEA 1", 
     HidePremium = false, 
     SaveConfig = true, 
-    ConfigFolder = "GoldTest"
+    ConfigFolder = "GoldHub1"
 })
 
 local Tab = Window:MakeTab({
-    Name = "Sucesso",
+    Name = "Main",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
 Tab:AddButton({
-    Name = "O Script Funcionou!",
+    Name = "Script Ativado com Sucesso!",
     Callback = function()
-        print("Botão apertado")
+        print("GOLD HUB está a funcionar!")
     end    
 })
 
