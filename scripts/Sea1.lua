@@ -44,18 +44,23 @@ end
 
 -- 1. AUTO CLIQUE (PURO - VOCÊ SELECIONA A ARMA)
 spawn(function()
-    while true do
-        task.wait(0.5)
+    while task.wait(0.15) do
         if _G.AutoAttack then
             pcall(function()
-                game:GetService("VirtualUser"):CaptureController()
-                game:GetService("VirtualUser"):Button1Down(Vector2.new(150, 150))
-                task.wait(0.01)
-                game:GetService("VirtualUser"):Button1Up(Vector2.new(150, 150))
+                local player = game.Players.LocalPlayer
+                local char = player.Character
+                if not char then return end
+
+                -- Procura ferramenta equipada
+                local tool = char:FindFirstChildOfClass("Tool")
+                if tool then
+                    tool:Activate()
+                end
             end)
         end
     end
 end)
+
 
 -- 2. LÓGICA DE FARM COM VOO (SEM TP)
 spawn(function()
