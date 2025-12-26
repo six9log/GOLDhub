@@ -103,6 +103,18 @@ spawn(function()
     end
 end)
 
+-- FUNÇÃO NOCOLLP TEMPORÁRIO
+local function NoclipPart(part)
+    if part:IsA("BasePart") then
+        part.CanCollide = false
+        task.delay(0.5, function()
+            if part then
+                part.CanCollide = true
+            end
+        end)
+    end
+end
+
 -- TABELA DE QUEST POR NÍVEL (SEA 1)
 local QuestTable = {
     {Min = 0, Max = 9, Quest = "BanditQuest1", ID = 1, Mob = "Bandit", QuestPos = CFrame.new(1059,16,1546), FarmPos = CFrame.new(1145,16,1630)},
@@ -110,7 +122,6 @@ local QuestTable = {
     {Min = 15, Max = 29, Quest = "JungleQuest", ID = 2, Mob = "Gorilla", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1240,6,497)},
     {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,5,3900)},
     {Min = 40, Max = 59, Quest = "BuggyQuest1", ID = 2, Mob = "Brute", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1340,5,4120)},
-    -- Adicione mais níveis conforme a progressão do jogo
 }
 
 local function GetQuestByLevel(level)
@@ -131,9 +142,9 @@ spawn(function()
                 local char = lp.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-                -- Noclip
+                -- Noclip temporário
                 for _, v in pairs(char:GetChildren()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
+                    NoclipPart(v)
                 end
 
                 local quest = GetQuestByLevel(lvl)
@@ -143,7 +154,8 @@ spawn(function()
                     SmoothMove(quest.QuestPos)
                     if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 10 then
                         task.wait(0.5)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(quest.Quest, quest.ID)
+                        -- CORRIGIDO: pegar a missão corretamente
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.Quest, quest.ID)
                     end
                 else
                     -- LÓGICA DE ALVO POR NÍVEL
@@ -166,22 +178,53 @@ spawn(function()
     end
 end)
 
--- ESP DE FRUTAS (SIMPLIFICADO)
+-- ESP DE FRUTAS E AUTO COLLECT
+spawn(function()
+    while task.wait(0.5) do
+        local char = game.Players.LocalPlayer.Character
+        if _G.FruitESP and char then
+            for _, v in pairs(workspace:GetChildren()) do
+                if v:IsA("Tool") and v:FindFirstChild("Handle") then
+                    -- ESP
+                    if not v.Handle:FindFirstChild("FruitESP") then
+                        local gui = Instance.new("BillboardGui", v.Handle)
+                        gui.Name = "FruitESP"
+                        gui.Size = UDim2.new(0, 100, 0, 40)
+                        gui.AlwaysOnTop = true
+                        local txt = Instance.new("TextLabel", gui)
+                        txt.Size = UDim2.new(1,0,1,0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = "🍎 " .. v.Name
+                        txt.TextColor3 = Color3.fromRGB(255,0,0)
+                        txt.TextScaled = true
+                    end
+                    -- AUTO COLLECT
+                    v.Handle.CFrame = char.HumanoidRootPart.CFrame
+                end
+            end
+        end
+    end
+end)
+
+-- PLAYER ESP
 spawn(function()
     while task.wait(1) do
-        if _G.FruitESP then
-            for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and v:FindFirstChild("Handle") and not v.Handle:FindFirstChild("FruitESP") then
-                    local gui = Instance.new("BillboardGui", v.Handle)
-                    gui.Name = "FruitESP"
-                    gui.Size = UDim2.new(0, 100, 0, 40)
-                    gui.AlwaysOnTop = true
-                    local txt = Instance.new("TextLabel", gui)
-                    txt.Size = UDim2.new(1,0,1,0)
-                    txt.BackgroundTransparency = 1
-                    txt.Text = "🍎 " .. v.Name
-                    txt.TextColor3 = Color3.fromRGB(255,0,0)
-                    txt.TextScaled = true
+        if _G.PlayerESP then
+            for _, plr in pairs(game.Players:GetPlayers()) do
+                if plr ~= game.Players.LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = plr.Character.HumanoidRootPart
+                    if not hrp:FindFirstChild("PlayerESP") then
+                        local gui = Instance.new("BillboardGui", hrp)
+                        gui.Name = "PlayerESP"
+                        gui.Size = UDim2.new(0,100,0,40)
+                        gui.AlwaysOnTop = true
+                        local txt = Instance.new("TextLabel", gui)
+                        txt.Size = UDim2.new(1,0,1,0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = plr.Name
+                        txt.TextColor3 = Color3.fromRGB(0,255,0)
+                        txt.TextScaled = true
+                    end
                 end
             end
         end
@@ -205,6 +248,12 @@ Tabs.Visuals:AddToggle("FruitESPToggle", {
     Title = "ESP de Frutas",
     Default = false,
     Callback = function(v) _G.FruitESP = v end
+})
+
+Tabs.Visuals:AddToggle("PlayerESPToggle", {
+    Title = "ESP de Players",
+    Default = false,
+    Callback = function(v) _G.PlayerESP = v end
 })
 
 Window:SelectTab(1)
