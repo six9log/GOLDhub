@@ -1,7 +1,7 @@
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "GOLD HUB | SEA 1",
+    Title = "GOLD HUB | SEA 1 (ULTRA)",
     SubTitle = "por six9log",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
@@ -13,89 +13,48 @@ local Tabs = { Main = Window:AddTab({ Title = "Farm", Icon = "home" }) }
 local Options = Fluent.Options
 _G.AutoFarm = false
 
--- SISTEMA DE ATAQUE POR MAGNITUDE (SEM CLIQUES NO MOUSE)
+-- ATAQUE REMOTO (DIRETO NO SERVIDOR)
 spawn(function()
     while true do
-        task.wait(0.1) -- Delay de 0.1s como pediste
+        task.wait(0.1) -- Seu delay de 0.1s
         if _G.AutoFarm then
             pcall(function()
-                local player = game.Players.LocalPlayer
-                local character = player.Character
-                
-                -- Verifica se tens uma ferramenta na mão
-                local tool = character:FindFirstChildOfClass("Tool")
-                if tool then
-                    -- Envia o sinal de ataque sem precisar clicar na tela
-                    tool:Activate()
-                    
-                    -- Dano em área (Magnitude)
-                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
-                            local dist = (character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
-                            if dist < 20 then
-                                -- Este comando ajuda o jogo a registar o soco no monstro
-                                game:GetService("ReplicatedStorage").Remotes.Validator:FireServer(math.huge)
-                            end
-                        end
-                    end
+                local Monster = workspace.Enemies:FindFirstChild("Bandit")
+                if Monster and Monster:FindFirstChild("Humanoid") and Monster.Humanoid.Health > 0 then
+                    -- Isso aqui envia o dano direto pro monstro, sem clique!
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Attack", Monster.HumanoidRootPart, true)
                 end
             end)
         end
     end
 end)
 
--- ANTI-QUEDA E NOCLIP MELHORADO
-game:GetService("RunService").Stepped:Connect(function()
-    if _G.AutoFarm then
-        pcall(function()
-            local char = game.Players.LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                -- Congela o boneco no ar para não cair nem tremer
-                if not char.HumanoidRootPart:FindFirstChild("GoldVelocity") then
-                    local bv = Instance.new("BodyVelocity")
-                    bv.Name = "GoldVelocity"
-                    bv.Velocity = Vector3.new(0,0,0)
-                    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    bv.Parent = char.HumanoidRootPart
-                end
-                -- Noclip para não bater em nada
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
-                end
-            end
-        end)
-    end
-end)
-
--- LÓGICA DE MOVIMENTO E QUESTS
+-- SISTEMA DE MOVIMENTO E QUEST (SIMPLIFICADO)
 spawn(function()
     while true do
         task.wait()
         if _G.AutoFarm then
             pcall(function()
                 local player = game.Players.LocalPlayer
-                local questGui = player.PlayerGui.Main.Quest
+                local root = player.Character.HumanoidRootPart
                 
-                if not questGui.Visible then
-                    -- Vai buscar a missão
-                    player.Character.HumanoidRootPart.CFrame = CFrame.new(1059, 16, 1546)
+                -- Se não tem missão
+                if not player.PlayerGui.Main.Quest.Visible then
+                    root.CFrame = CFrame.new(1059, 16, 1546)
                     task.wait(0.5)
                     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", "BanditQuest1", 1)
                 else
                     -- Procura o Bandit
                     local Monster = workspace.Enemies:FindFirstChild("Bandit")
-                    if Monster and Monster:FindFirstChild("HumanoidRootPart") and Monster.Humanoid.Health > 0 then
-                        -- Fica a 6 studs de altura (perfeito para o soco)
-                        player.Character.HumanoidRootPart.CFrame = Monster.HumanoidRootPart.CFrame * CFrame.new(0, 6, 0)
+                    if Monster and Monster:FindFirstChild("HumanoidRootPart") then
+                        -- Fica colado no monstro para o dano entrar
+                        root.CFrame = Monster.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
                         
-                        -- Equipar Arma automaticamente
-                        local tool = player.Backpack:FindFirstChildOfClass("Tool") or player.Character:FindFirstChildOfClass("Tool")
-                        if tool and not player.Character:FindFirstChild(tool.Name) then
-                            player.Character.Humanoid:EquipTool(tool)
+                        -- Noclip e Anti-Queda
+                        root.Velocity = Vector3.new(0,0,0)
+                        for _, v in pairs(player.Character:GetDescendants()) do
+                            if v:IsA("BasePart") then v.CanCollide = false end
                         end
-                    else
-                        -- Espera os monstros nascerem
-                        player.Character.HumanoidRootPart.CFrame = CFrame.new(1145, 20, 1630)
                     end
                 end
             end)
