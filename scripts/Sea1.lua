@@ -1,5 +1,5 @@
--- GOLD HUB | Sea 1 Test
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+-- GOLD HUB | SEA 1
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
 
 local Window = OrionLib:MakeWindow({
     Name = "GOLD HUB | SEA 1", 
@@ -9,15 +9,20 @@ local Window = OrionLib:MakeWindow({
 })
 
 local Tab = Window:MakeTab({
-    Name = "Main",
+    Name = "Início",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
 Tab:AddButton({
-    Name = "Script Ativado com Sucesso!",
+    Name = "Script Ativado!",
     Callback = function()
-        print("GOLD HUB está a funcionar!")
+        OrionLib:MakeNotification({
+            Name = "GOLD HUB",
+            Content = "O menu está a funcionar perfeitamente!",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
     end    
 })
 
