@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "BlueX Base + Fruit Finder",
+    SubTitle = "Versão Completa (v1.2)",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -11,21 +11,46 @@ local Window = Fluent:CreateWindow({
 
 local Tabs = { 
     Main = Window:AddTab({ Title = "Farm", Icon = "home" }),
-    Fruits = Window:AddTab({ Title = "Frutas", Icon = "apple" })
+    Fruits = Window:AddTab({ Title = "Frutas", Icon = "apple" }),
+    ESP = Window:AddTab({ Title = "Visual (ESP)", Icon = "eye" })
 }
 
 _G.AutoFarm = false
 _G.AutoAttack = false
 _G.FruitESP = false
+_G.PlayerESP = false
 
--- 1. SISTEMA DE FRUTAS (ESP, COLLECT, STORE)
+-- 1. FUNÇÃO AUTO-ATAQUE (1 CLICK A CADA 0.5s)
+spawn(function()
+    while true do
+        task.wait(0.5) -- O tempo solicitado
+        if _G.AutoAttack then
+            pcall(function()
+                local player = game.Players.LocalPlayer
+                local char = player.Character
+                local tool = player.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
+                
+                if tool then
+                    if tool.Parent == player.Backpack then
+                        char.Humanoid:EquipTool(tool)
+                    end
+                    -- Clique no centro sem abrir script
+                    game:GetService("VirtualUser"):CaptureController()
+                    game:GetService("VirtualUser"):Button1Down(Vector2.new(150, 150))
+                end
+            end)
+        end
+    end
+end)
+
+-- 2. ABA FRUITS: ESP E AUTO-COLLECT
 spawn(function()
     while task.wait(1) do
         if _G.FruitESP then
             for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and v:FindFirstChild("Handle") and not v:FindFirstChild("FruitESP") then
+                if v:IsA("Tool") and v:FindFirstChild("Handle") and not v:FindFirstChild("FruitTag") then
                     local bill = Instance.new("BillboardGui", v)
-                    bill.Name = "FruitESP"
+                    bill.Name = "FruitTag"
                     bill.AlwaysOnTop = true
                     bill.Size = UDim2.new(0, 100, 0, 50)
                     bill.ExtentsOffset = Vector3.new(0, 3, 0)
@@ -33,14 +58,14 @@ spawn(function()
                     local label = Instance.new("TextLabel", bill)
                     label.BackgroundTransparency = 1
                     label.Size = UDim2.new(1, 0, 1, 0)
-                    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    label.TextColor3 = Color3.fromRGB(0, 255, 127) -- Verde para frutas
                     label.TextStrokeTransparency = 0
                     label.TextSize = 14
                     
                     spawn(function()
                         while v:IsDescendantOf(workspace) do
                             local dist = math.floor((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v.Handle.Position).Magnitude)
-                            label.Text = v.Name .. "\n[" .. dist .. "m]"
+                            label.Text = "🍎 " .. v.Name .. "\n[" .. dist .. "m]"
                             task.wait(0.5)
                         end
                     end)
@@ -50,39 +75,56 @@ spawn(function()
     end
 end)
 
-local function CollectFruit()
+local function CollectAndStore()
+    local player = game.Players.LocalPlayer
     for _, v in pairs(workspace:GetChildren()) do
         if v:IsA("Tool") and v:FindFirstChild("Handle") then
-            local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-            local tween = game:GetService("TweenService"):Create(root, TweenInfo.new((root.Position - v.Handle.Position).Magnitude/200, Enum.EasingStyle.Linear), {CFrame = v.Handle.CFrame})
+            local root = player.Character.HumanoidRootPart
+            -- Tween suave para coletar
+            local tween = game:GetService("TweenService"):Create(root, TweenInfo.new((root.Position - v.Handle.Position).Magnitude/150, Enum.EasingStyle.Linear), {CFrame = v.Handle.CFrame})
             tween:Play()
             tween.Completed:Wait()
             task.wait(0.5)
-            -- Auto Storage
+            -- Auto Store (Guardar no Inventário)
             game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", v:GetAttribute("FruitName"), v)
         end
     end
 end
 
--- 2. SISTEMA DE FARM (BASE ANTERIOR)
+-- 3. ABA ESP: JOGADORES
 spawn(function()
-    while task.wait() do
-        if _G.AutoAttack then
-            pcall(function()
-                local char = game.Players.LocalPlayer.Character
-                local tool = game.Players.LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
-                if tool and not char:FindFirstChild(tool.Name) then
-                    char.Humanoid:EquipTool(tool)
+    while task.wait(1) do
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if _G.PlayerESP and not p.Character:FindFirstChild("PlayerTag") then
+                    local bill = Instance.new("BillboardGui", p.Character.HumanoidRootPart)
+                    bill.Name = "PlayerTag"
+                    bill.AlwaysOnTop = true
+                    bill.Size = UDim2.new(0, 100, 0, 50)
+                    bill.ExtentsOffset = Vector3.new(0, 3, 0)
+                    
+                    local label = Instance.new("TextLabel", bill)
+                    label.BackgroundTransparency = 1
+                    label.Size = UDim2.new(1, 0, 1, 0)
+                    label.TextColor3 = Color3.fromRGB(255, 50, 50) -- Vermelho para jogadores
+                    label.TextStrokeTransparency = 0
+                    label.TextSize = 12
+                    
+                    spawn(function()
+                        while p.Character and p.Character:FindFirstChild("HumanoidRootPart") and _G.PlayerESP do
+                            local dist = math.floor((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude)
+                            label.Text = p.Name .. "\n[" .. dist .. "m]"
+                            task.wait(0.5)
+                        end
+                        bill:Destroy()
+                    end)
                 end
-                if char:FindFirstChildOfClass("Tool") then
-                    game:GetService("VirtualUser"):CaptureController()
-                    game:GetService("VirtualUser"):Button1Down(Vector2.new(100, 100))
-                end
-            end)
+            end
         end
     end
 end)
 
+-- 4. FARM LOGIC (ESTÁVEL)
 game:GetService("RunService").Stepped:Connect(function()
     if _G.AutoFarm then
         pcall(function()
@@ -108,15 +150,15 @@ game:GetService("RunService").Stepped:Connect(function()
     end
 end)
 
--- 3. INTERFACE
+-- INTERFACE
 Tabs.Main:AddToggle("FarmToggle", {Title = "Auto Farm Bandits", Default = false, Callback = function(v) _G.AutoFarm = v end})
-Tabs.Main:AddToggle("AttackToggle", {Title = "Fast Attack", Default = false, Callback = function(v) _G.AutoAttack = v end})
+Tabs.Main:AddToggle("AttackToggle", {Title = "Auto Clique (0.5s)", Default = false, Callback = function(v) _G.AutoAttack = v end})
 
-Tabs.Fruits:AddToggle("ESPToggle", {Title = "ESP Frutas (Nome/Distância)", Default = false, Callback = function(v) _G.FruitESP = v end})
+Tabs.Fruits:AddToggle("FruitESPToggle", {Title = "ESP de Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
 Tabs.Fruits:AddButton({
-    Title = "Coletar e Guardar Frutas",
-    Description = "Voa até as frutas no chão e guarda no baú",
-    Callback = function()
-        CollectFruit()
-    end
+    Title = "Collect & Store Fruta",
+    Description = "Voa até a fruta e guarda no inventário",
+    Callback = function() CollectAndStore() end
 })
+
+Tabs.ESP:AddToggle("PlayerESPToggle", {Title = "ESP de Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
