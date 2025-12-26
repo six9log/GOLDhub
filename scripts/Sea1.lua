@@ -5,33 +5,37 @@ local Window = Fluent:CreateWindow({
     SubTitle = "por six9log",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
+    Acrylic = false,
+    Theme = "Dark"
 })
 
 local Tabs = {
-    Main = Window:AddTab({ Title = "Farm Principal", Icon = "home" }),
-    Settings = Window:AddTab({ Title = "Configurações", Icon = "settings" })
+    Main = Window:AddTab({ Title = "Farm", Icon = "rbxassetid://4483362458" })
 }
 
-Tabs.Main:AddParagraph({
-    Title = "Bem-vindo!",
-    Content = "O GOLD HUB está agora usando a Fluent Interface."
-})
+local Options = Fluent.Options
 
-Tabs.Main:AddButton({
-    Title = "Testar Script",
-    Description = "Verifica se o HUB está respondendo",
-    Callback = function()
-        Window:Dialog({
-            Title = "Sucesso",
-            Content = "A interface Fluent carregou perfeitamente!",
-            Buttons = {
-                { Title = "Legal!", Default = true }
-            }
-        })
+-- VARIÁVEIS DE CONTROLE
+_G.AutoFarm = false
+
+-- FUNÇÃO DE ATAQUE
+spawn(function()
+    while wait() do
+        if _G.AutoFarm then
+            pcall(function()
+                -- Aqui entra a lógica de clique/ataque
+                game:GetService("VirtualUser"):CaptureController()
+                game:GetService("VirtualUser"):Button1Down(Vector2.new(1280, 672))
+            end)
+        end
     end
-})
+end)
+
+-- INTERFACE
+Tabs.Main:AddToggle("AutoFarm", {Title = "Auto Farm Level", Default = false})
+
+Options.AutoFarm:OnChanged(function()
+    _G.AutoFarm = Options.AutoFarm.Value
+end)
 
 Fluent:SelectTab(1)
