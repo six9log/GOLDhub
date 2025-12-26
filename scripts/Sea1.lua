@@ -23,14 +23,24 @@ _G.AutoStoreFruit = false
 
 local CurrentTween = nil
 
--- FUNÇÃO DE VOO REAL
+-- FUNÇÃO DE VOO ESTABILIZADA
 function SmoothMove(TargetCFrame)
     local Character = game.Players.LocalPlayer.Character
     local Root = Character:FindFirstChild("HumanoidRootPart")
+    local Hum = Character:FindFirstChildOfClass("Humanoid")
     
-    if Root and _G.AutoFarm then
+    if Root and Hum and _G.AutoFarm then
+        -- Mantém o estado de física para evitar resistência da animação de andar
+        if Hum:GetState() ~= Enum.HumanoidStateType.Physics then
+            Hum:ChangeState(Enum.HumanoidStateType.Physics)
+        end
+
+        -- Estabilizadores de Força (Zera forças externas)
+        Root.Velocity = Vector3.new(0,0,0)
+        Root.RotVelocity = Vector3.new(0,0,0)
+
         local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        local Speed = 250
+        local Speed = 250 -- Velocidade balanceada para evitar kick por teleporte
         
         if CurrentTween then CurrentTween:Cancel() end
         
@@ -40,14 +50,15 @@ function SmoothMove(TargetCFrame)
             {CFrame = TargetCFrame}
         )
         CurrentTween:Play()
-    elseif CurrentTween and not _G.AutoFarm then
-        CurrentTween:Cancel()
+    elseif not _G.AutoFarm then
+        if CurrentTween then CurrentTween:Cancel() end
+        if Hum then Hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
     end
 end
 
--- 1. AUTO ATAQUE (CORRIGIDO)
+-- 1. AUTO ATAQUE
 spawn(function()
-    while task.wait(0.15) do
+    while task.wait(0.1) do
         if _G.AutoAttack then
             pcall(function()
                 local player = game.Players.LocalPlayer
@@ -55,7 +66,6 @@ spawn(function()
                 if not char then return end
 
                 local tool = char:FindFirstChildOfClass("Tool")
-
                 if not tool then
                     local bp = player:FindFirstChild("Backpack")
                     if bp then
@@ -75,7 +85,7 @@ spawn(function()
     end
 end)
 
--- 2. AUTO FARM (INALTERADO)
+-- 2. AUTO FARM COM NOCLIP E ESTABILIDADE
 spawn(function()
     while task.wait(0.1) do
         if _G.AutoFarm then
@@ -83,16 +93,17 @@ spawn(function()
                 local lp = game.Players.LocalPlayer
                 local lvl = lp.Data.Level.Value
                 local char = lp.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
                 
-                for _, v in pairs(char:GetDescendants()) do
+                -- NOCLIP ATIVO: Essencial para estabilidade
+                for _, v in pairs(char:GetChildren()) do
                     if v:IsA("BasePart") then
                         v.CanCollide = false
                     end
                 end
 
-                char.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
-
                 if not lp.PlayerGui.Main.Quest.Visible then
+                    -- Lógica de Quests
                     local targetPos = CFrame.new(1059, 16, 1546)
                     local qName, qID = "BanditQuest1", 1
                     
@@ -103,25 +114,24 @@ spawn(function()
                     
                     SmoothMove(targetPos)
                     if (char.HumanoidRootPart.Position - targetPos.Position).Magnitude < 10 then
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
-                            "StartQuest", qName, qID
-                        )
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qName, qID)
                     end
                 else
+                    -- Lógica de NPCs
                     local monsterName = (lvl >= 15) and "Gorilla" or "Bandit"
                     local target
                     
                     for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == monsterName
-                        and v:FindFirstChild("Humanoid")
-                        and v.Humanoid.Health > 0 then
+                        if v.Name == monsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
                             target = v
                             break
                         end
                     end
                     
                     if target then
-                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
+                        -- Voa 8 studs acima do inimigo para evitar colisão e bugs de física
+                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0)
+                        SmoothMove(farmPos)
                     end
                 end
             end)
@@ -142,7 +152,6 @@ spawn(function()
                         gui.Name = "FruitESP"
                         gui.Size = UDim2.new(0, 100, 0, 40)
                         gui.AlwaysOnTop = true
-
                         local txt = Instance.new("TextLabel", gui)
                         txt.Size = UDim2.new(1,0,1,0)
                         txt.BackgroundTransparency = 1
@@ -155,9 +164,7 @@ spawn(function()
             end
         else
             for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "FruitESP" then
-                    v:Destroy()
-                end
+                if v.Name == "FruitESP" then v:Destroy() end
             end
         end
     end
@@ -175,7 +182,6 @@ spawn(function()
                         gui.Name = "PlayerESP"
                         gui.Size = UDim2.new(0, 100, 0, 40)
                         gui.AlwaysOnTop = true
-
                         local txt = Instance.new("TextLabel", gui)
                         txt.Size = UDim2.new(1,0,1,0)
                         txt.BackgroundTransparency = 1
@@ -188,21 +194,25 @@ spawn(function()
             end
         else
             for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "PlayerESP" then
-                    v:Destroy()
-                end
+                if v.Name == "PlayerESP" then v:Destroy() end
             end
         end
     end
 end)
 
--- INTERFACE (INALTERADA)
+-- INTERFACE
 Tabs.Main:AddToggle("FarmToggle", {
-    Title = "Auto Farm (Modo Voo)",
+    Title = "Auto Farm (Voo Estabilizado)",
     Default = false,
     Callback = function(v)
         _G.AutoFarm = v
-        if not v and CurrentTween then CurrentTween:Cancel() end
+        if not v and CurrentTween then 
+            CurrentTween:Cancel() 
+            local lp = game.Players.LocalPlayer
+            if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
+                lp.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+        end
     end
 })
 
@@ -228,3 +238,5 @@ Tabs.Visuals:AddToggle("PlayerESPToggle", {
 Tabs.Visuals:AddSection("Opções de Fruta")
 Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
 Tabs.Visuals:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
+
+Window:SelectTab(1)
