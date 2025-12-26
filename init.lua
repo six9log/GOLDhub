@@ -2,7 +2,7 @@
 print("Iniciando GOLD HUB...")
 
 local PlaceId = game.PlaceId
-local BaseURL = "https://raw.githubusercontent.com/SEU_USUARIO/GOLD-HUB/main/scripts/"
+local BaseURL = "https://raw.githubusercontent.com/six9log/GOLDhub/main/scripts/"
 
 if PlaceId == 2753915549 then
     loadstring(game:HttpGet(BaseURL .. "Sea1.lua"))()
