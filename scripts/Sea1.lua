@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "Versão Completa (v1.2)",
+    SubTitle = "Ataque Manual (v1.3)",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -20,24 +20,18 @@ _G.AutoAttack = false
 _G.FruitESP = false
 _G.PlayerESP = false
 
--- 1. FUNÇÃO AUTO-ATAQUE (1 CLICK A CADA 0.5s)
+-- 1. FUNÇÃO AUTO-ATAQUE (APENAS CLIQUE - VOCÊ SELECIONA A ARMA)
 spawn(function()
     while true do
         task.wait(0.5) -- O tempo solicitado
         if _G.AutoAttack then
             pcall(function()
-                local player = game.Players.LocalPlayer
-                local char = player.Character
-                local tool = player.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
-                
-                if tool then
-                    if tool.Parent == player.Backpack then
-                        char.Humanoid:EquipTool(tool)
-                    end
-                    -- Clique no centro sem abrir script
-                    game:GetService("VirtualUser"):CaptureController()
-                    game:GetService("VirtualUser"):Button1Down(Vector2.new(150, 150))
-                end
+                -- Removido o 'EquipTool' automático para não bugar
+                -- O script apenas clica. Se você tiver algo na mão, ele ataca.
+                game:GetService("VirtualUser"):CaptureController()
+                game:GetService("VirtualUser"):Button1Down(Vector2.new(150, 150))
+                task.wait(0.01)
+                game:GetService("VirtualUser"):Button1Up(Vector2.new(150, 150))
             end)
         end
     end
@@ -58,7 +52,7 @@ spawn(function()
                     local label = Instance.new("TextLabel", bill)
                     label.BackgroundTransparency = 1
                     label.Size = UDim2.new(1, 0, 1, 0)
-                    label.TextColor3 = Color3.fromRGB(0, 255, 127) -- Verde para frutas
+                    label.TextColor3 = Color3.fromRGB(0, 255, 127)
                     label.TextStrokeTransparency = 0
                     label.TextSize = 14
                     
@@ -80,12 +74,10 @@ local function CollectAndStore()
     for _, v in pairs(workspace:GetChildren()) do
         if v:IsA("Tool") and v:FindFirstChild("Handle") then
             local root = player.Character.HumanoidRootPart
-            -- Tween suave para coletar
             local tween = game:GetService("TweenService"):Create(root, TweenInfo.new((root.Position - v.Handle.Position).Magnitude/150, Enum.EasingStyle.Linear), {CFrame = v.Handle.CFrame})
             tween:Play()
             tween.Completed:Wait()
             task.wait(0.5)
-            -- Auto Store (Guardar no Inventário)
             game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", v:GetAttribute("FruitName"), v)
         end
     end
@@ -106,7 +98,7 @@ spawn(function()
                     local label = Instance.new("TextLabel", bill)
                     label.BackgroundTransparency = 1
                     label.Size = UDim2.new(1, 0, 1, 0)
-                    label.TextColor3 = Color3.fromRGB(255, 50, 50) -- Vermelho para jogadores
+                    label.TextColor3 = Color3.fromRGB(255, 50, 50)
                     label.TextStrokeTransparency = 0
                     label.TextSize = 12
                     
@@ -157,8 +149,3 @@ Tabs.Main:AddToggle("AttackToggle", {Title = "Auto Clique (0.5s)", Default = fal
 Tabs.Fruits:AddToggle("FruitESPToggle", {Title = "ESP de Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
 Tabs.Fruits:AddButton({
     Title = "Collect & Store Fruta",
-    Description = "Voa até a fruta e guarda no inventário",
-    Callback = function() CollectAndStore() end
-})
-
-Tabs.ESP:AddToggle("PlayerESPToggle", {Title = "ESP de Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
