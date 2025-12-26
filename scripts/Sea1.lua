@@ -1,29 +1,37 @@
--- GOLD HUB | SEA 1
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Orion/main/source'))()
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
-local Window = OrionLib:MakeWindow({
-    Name = "GOLD HUB | SEA 1", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "GoldHub1"
+local Window = Fluent:CreateWindow({
+    Title = "GOLD HUB | SEA 1",
+    SubTitle = "por six9log",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
-local Tab = Window:MakeTab({
-    Name = "Início",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
+local Tabs = {
+    Main = Window:AddTab({ Title = "Farm Principal", Icon = "home" }),
+    Settings = Window:AddTab({ Title = "Configurações", Icon = "settings" })
+}
+
+Tabs.Main:AddParagraph({
+    Title = "Bem-vindo!",
+    Content = "O GOLD HUB está agora usando a Fluent Interface."
 })
 
-Tab:AddButton({
-    Name = "Script Ativado!",
+Tabs.Main:AddButton({
+    Title = "Testar Script",
+    Description = "Verifica se o HUB está respondendo",
     Callback = function()
-        OrionLib:MakeNotification({
-            Name = "GOLD HUB",
-            Content = "O menu está a funcionar perfeitamente!",
-            Image = "rbxassetid://4483345998",
-            Time = 5
+        Window:Dialog({
+            Title = "Sucesso",
+            Content = "A interface Fluent carregou perfeitamente!",
+            Buttons = {
+                { Title = "Legal!", Default = true }
+            }
         })
-    end    
+    end
 })
 
-OrionLib:Init()
+Fluent:SelectTab(1)
