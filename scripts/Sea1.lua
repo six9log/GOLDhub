@@ -53,37 +53,29 @@ Stroke.Color = Color3.fromRGB(0, 0, 0)
 local MenuVisible = true
 Button.MouseButton1Click:Connect(function()
     MenuVisible = not MenuVisible
-    Window:SetVisible(MenuVisible)
+    if Window.MainFrame then
+        Window.MainFrame.Visible = MenuVisible
+    end
 end)
 
--- FUNÇÃO DE VOO ESTABILIZADA
+-- FUNÇÃO DE VOO ESTABILIZADA (ANDA NORMAL PELO CHÃO)
 function SmoothMove(TargetCFrame)
     local Character = game.Players.LocalPlayer.Character
+    if not Character then return end
     local Root = Character:FindFirstChild("HumanoidRootPart")
-    local Hum = Character:FindFirstChildOfClass("Humanoid")
-    
-    if Root and Hum and _G.AutoFarm then
-        if Hum:GetState() ~= Enum.HumanoidStateType.Physics then
-            Hum:ChangeState(Enum.HumanoidStateType.Physics)
-        end
-        Root.Velocity = Vector3.new(0,0,0)
-        Root.RotVelocity = Vector3.new(0,0,0)
+    if not Root then return end
 
-        local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        local Speed = 250 
-        
-        if CurrentTween then CurrentTween:Cancel() end
-        
-        CurrentTween = game:GetService("TweenService"):Create(
-            Root,
-            TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),
-            {CFrame = TargetCFrame}
-        )
-        CurrentTween:Play()
-    elseif not _G.AutoFarm then
-        if CurrentTween then CurrentTween:Cancel() end
-        if Hum then Hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
-    end
+    local Distance = (TargetCFrame.Position - Root.Position).Magnitude
+    local Speed = 250 
+
+    if CurrentTween then CurrentTween:Cancel() end
+
+    CurrentTween = game:GetService("TweenService"):Create(
+        Root,
+        TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),
+        {CFrame = TargetCFrame}
+    )
+    CurrentTween:Play()
 end
 
 -- 1. AUTO ATAQUE
@@ -108,9 +100,7 @@ local function NoclipPart(part)
     if part:IsA("BasePart") then
         part.CanCollide = false
         task.delay(0.5, function()
-            if part then
-                part.CanCollide = true
-            end
+            if part then part.CanCollide = true end
         end)
     end
 end
@@ -151,10 +141,10 @@ spawn(function()
                 if not quest then return end
 
                 if not lp.PlayerGui.Main.Quest.Visible then
-                    SmoothMove(quest.QuestPos)
-                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 10 then
+                    local targetCFrame = quest.QuestPos + Vector3.new(0,3,0)
+                    SmoothMove(targetCFrame)
+                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 12 then
                         task.wait(0.5)
-                        -- CORRIGIDO: pegar a missão corretamente
                         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.Quest, quest.ID)
                     end
                 else
@@ -170,7 +160,7 @@ spawn(function()
                     if target then
                         SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
                     else
-                        SmoothMove(quest.FarmPos)
+                        SmoothMove(quest.FarmPos + Vector3.new(0,3,0))
                     end
                 end
             end)
