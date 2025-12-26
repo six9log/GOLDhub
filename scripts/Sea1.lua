@@ -21,6 +21,41 @@ _G.PlayerESP = false
 
 local CurrentTween = nil
 
+-- BOTÃO FLUTUANTE REDONDO PARA MINIMIZAR/ABRIR MENU
+local UIS = game:GetService("UserInputService")
+local PlayerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local FloatGui = Instance.new("ScreenGui")
+FloatGui.Name = "FloatToggleGui"
+FloatGui.Parent = PlayerGui
+FloatGui.ResetOnSpawn = false
+
+local Button = Instance.new("TextButton")
+Button.Parent = FloatGui
+Button.Size = UDim2.new(0, 55, 0, 55)
+Button.Position = UDim2.new(0, 20, 0.5, -25)
+Button.Text = "☰"
+Button.TextSize = 28
+Button.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+Button.TextColor3 = Color3.fromRGB(0, 0, 0)
+Button.BorderSizePixel = 0
+Button.AutoButtonColor = true
+Button.Draggable = true
+Button.Active = true
+
+local Corner = Instance.new("UICorner", Button)
+Corner.CornerRadius = UDim.new(1, 0)
+
+local Stroke = Instance.new("UIStroke", Button)
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(0, 0, 0)
+
+local MenuVisible = true
+Button.MouseButton1Click:Connect(function()
+    MenuVisible = not MenuVisible
+    Window:SetVisible(MenuVisible)
+end)
+
 -- FUNÇÃO DE VOO ESTABILIZADA
 function SmoothMove(TargetCFrame)
     local Character = game.Players.LocalPlayer.Character
@@ -68,7 +103,25 @@ spawn(function()
     end
 end)
 
--- 2. AUTO FARM DINÂMICO (CORRIGIDO PARA SELVA)
+-- TABELA DE QUEST POR NÍVEL (SEA 1)
+local QuestTable = {
+    {Min = 0, Max = 9, Quest = "BanditQuest1", ID = 1, Mob = "Bandit", QuestPos = CFrame.new(1059,16,1546), FarmPos = CFrame.new(1145,16,1630)},
+    {Min = 10, Max = 14, Quest = "JungleQuest", ID = 1, Mob = "Monkey", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1612,36,147)},
+    {Min = 15, Max = 29, Quest = "JungleQuest", ID = 2, Mob = "Gorilla", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1240,6,497)},
+    {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,5,3900)},
+    {Min = 40, Max = 59, Quest = "BuggyQuest1", ID = 2, Mob = "Brute", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1340,5,4120)},
+    -- Adicione mais níveis conforme a progressão do jogo
+}
+
+local function GetQuestByLevel(level)
+    for _, q in pairs(QuestTable) do
+        if level >= q.Min and level <= q.Max then
+            return q
+        end
+    end
+end
+
+-- 2. AUTO FARM DINÂMICO (TODAS AS ILHAS SEA 1)
 spawn(function()
     while task.wait(0.1) do
         if _G.AutoFarm then
@@ -77,55 +130,35 @@ spawn(function()
                 local lvl = lp.Data.Level.Value
                 local char = lp.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-                
+
                 -- Noclip
                 for _, v in pairs(char:GetChildren()) do
                     if v:IsA("BasePart") then v.CanCollide = false end
                 end
 
-                if not lp.PlayerGui.Main.Quest.Visible then
-                    -- LÓGICA DE SELEÇÃO DE MISSÃO POR NÍVEL
-                    local qName, qID, qNPCPos
-                    
-                    if lvl >= 0 and lvl < 10 then
-                        qName, qID = "BanditQuest1", 1
-                        qNPCPos = CFrame.new(1059, 16, 1546) -- NPC Bandidos
-                    elseif lvl >= 10 and lvl < 15 then
-                        qName, qID = "JungleQuest", 1
-                        qNPCPos = CFrame.new(-1598, 37, 153) -- NPC Selva (Macacos)
-                    elseif lvl >= 15 and lvl < 30 then
-                        qName, qID = "JungleQuest", 2
-                        qNPCPos = CFrame.new(-1598, 37, 153) -- NPC Selva (Gorilas)
-                    end
+                local quest = GetQuestByLevel(lvl)
+                if not quest then return end
 
-                    if qNPCPos then
-                        SmoothMove(qNPCPos)
-                        if (char.HumanoidRootPart.Position - qNPCPos.Position).Magnitude < 10 then
-                            task.wait(0.5)
-                            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qName, qID)
-                        end
+                if not lp.PlayerGui.Main.Quest.Visible then
+                    SmoothMove(quest.QuestPos)
+                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 10 then
+                        task.wait(0.5)
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(quest.Quest, quest.ID)
                     end
                 else
                     -- LÓGICA DE ALVO POR NÍVEL
-                    local monsterName = ""
-                    if lvl < 10 then monsterName = "Bandit"
-                    elseif lvl >= 10 and lvl < 15 then monsterName = "Monkey"
-                    elseif lvl >= 15 then monsterName = "Gorilla" end
-                    
                     local target = nil
                     for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == monsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                        if v.Name == quest.Mob and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
                             target = v
                             break
                         end
                     end
-                    
+
                     if target then
                         SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
                     else
-                        -- Se não achar o monstro, vai para o spawn dele
-                        local spawnPos = (monsterName == "Monkey") and CFrame.new(-1612, 36, 147) or CFrame.new(-1240, 6, 497)
-                        SmoothMove(spawnPos)
+                        SmoothMove(quest.FarmPos)
                     end
                 end
             end)
