@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "v1.8 - Real Smooth Flight",
+    SubTitle = "v1.9 - Auto Quest System",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -18,8 +18,6 @@ _G.AutoFarm = false
 _G.AutoAttack = false
 _G.FruitESP = false
 _G.PlayerESP = false
-_G.AutoCollectFruit = false
-_G.AutoStoreFruit = false
 
 local CurrentTween = nil
 
@@ -30,17 +28,14 @@ function SmoothMove(TargetCFrame)
     local Hum = Character:FindFirstChildOfClass("Humanoid")
     
     if Root and Hum and _G.AutoFarm then
-        -- Mantém o estado de física para evitar resistência da animação de andar
         if Hum:GetState() ~= Enum.HumanoidStateType.Physics then
             Hum:ChangeState(Enum.HumanoidStateType.Physics)
         end
-
-        -- Estabilizadores de Força (Zera forças externas)
         Root.Velocity = Vector3.new(0,0,0)
         Root.RotVelocity = Vector3.new(0,0,0)
 
         local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        local Speed = 250 -- Velocidade balanceada para evitar kick por teleporte
+        local Speed = 250 
         
         if CurrentTween then CurrentTween:Cancel() end
         
@@ -63,29 +58,17 @@ spawn(function()
             pcall(function()
                 local player = game.Players.LocalPlayer
                 local char = player.Character
-                if not char then return end
-
-                local tool = char:FindFirstChildOfClass("Tool")
-                if not tool then
-                    local bp = player:FindFirstChild("Backpack")
-                    if bp then
-                        local bpTool = bp:FindFirstChildOfClass("Tool")
-                        if bpTool then
-                            char.Humanoid:EquipTool(bpTool)
-                            tool = bpTool
-                        end
-                    end
+                local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
+                if tool and not char:FindFirstChild(tool.Name) then
+                    char.Humanoid:EquipTool(tool)
                 end
-
-                if tool then
-                    tool:Activate()
-                end
+                if tool then tool:Activate() end
             end)
         end
     end
 end)
 
--- 2. AUTO FARM COM NOCLIP E ESTABILIDADE
+-- 2. AUTO FARM DINÂMICO (CORRIGIDO PARA SELVA)
 spawn(function()
     while task.wait(0.1) do
         if _G.AutoFarm then
@@ -95,32 +78,41 @@ spawn(function()
                 local char = lp.Character
                 if not char or not char:FindFirstChild("HumanoidRootPart") then return end
                 
-                -- NOCLIP ATIVO: Essencial para estabilidade
+                -- Noclip
                 for _, v in pairs(char:GetChildren()) do
-                    if v:IsA("BasePart") then
-                        v.CanCollide = false
-                    end
+                    if v:IsA("BasePart") then v.CanCollide = false end
                 end
 
                 if not lp.PlayerGui.Main.Quest.Visible then
-                    -- Lógica de Quests
-                    local targetPos = CFrame.new(1059, 16, 1546)
-                    local qName, qID = "BanditQuest1", 1
+                    -- LÓGICA DE SELEÇÃO DE MISSÃO POR NÍVEL
+                    local qName, qID, qNPCPos
                     
-                    if lvl >= 15 then 
-                        targetPos = CFrame.new(-1598, 37, 153)
+                    if lvl >= 0 and lvl < 10 then
+                        qName, qID = "BanditQuest1", 1
+                        qNPCPos = CFrame.new(1059, 16, 1546) -- NPC Bandidos
+                    elseif lvl >= 10 and lvl < 15 then
+                        qName, qID = "JungleQuest", 1
+                        qNPCPos = CFrame.new(-1598, 37, 153) -- NPC Selva (Macacos)
+                    elseif lvl >= 15 and lvl < 30 then
                         qName, qID = "JungleQuest", 2
+                        qNPCPos = CFrame.new(-1598, 37, 153) -- NPC Selva (Gorilas)
                     end
-                    
-                    SmoothMove(targetPos)
-                    if (char.HumanoidRootPart.Position - targetPos.Position).Magnitude < 10 then
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qName, qID)
+
+                    if qNPCPos then
+                        SmoothMove(qNPCPos)
+                        if (char.HumanoidRootPart.Position - qNPCPos.Position).Magnitude < 10 then
+                            task.wait(0.5)
+                            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qName, qID)
+                        end
                     end
                 else
-                    -- Lógica de NPCs
-                    local monsterName = (lvl >= 15) and "Gorilla" or "Bandit"
-                    local target
+                    -- LÓGICA DE ALVO POR NÍVEL
+                    local monsterName = ""
+                    if lvl < 10 then monsterName = "Bandit"
+                    elseif lvl >= 10 and lvl < 15 then monsterName = "Monkey"
+                    elseif lvl >= 15 then monsterName = "Gorilla" end
                     
+                    local target = nil
                     for _, v in pairs(workspace.Enemies:GetChildren()) do
                         if v.Name == monsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
                             target = v
@@ -129,72 +121,35 @@ spawn(function()
                     end
                     
                     if target then
-                        -- Voa 8 studs acima do inimigo para evitar colisão e bugs de física
-                        local farmPos = target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0)
-                        SmoothMove(farmPos)
+                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
+                    else
+                        -- Se não achar o monstro, vai para o spawn dele
+                        local spawnPos = (monsterName == "Monkey") and CFrame.new(-1612, 36, 147) or CFrame.new(-1240, 6, 497)
+                        SmoothMove(spawnPos)
                     end
                 end
             end)
-        else
-            if CurrentTween then CurrentTween:Cancel() end
         end
     end
 end)
 
--- 3. ESP DE FRUTAS
+-- ESP DE FRUTAS (SIMPLIFICADO)
 spawn(function()
     while task.wait(1) do
         if _G.FruitESP then
             for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and v:FindFirstChild("Handle") then
-                    if not v.Handle:FindFirstChild("FruitESP") then
-                        local gui = Instance.new("BillboardGui", v.Handle)
-                        gui.Name = "FruitESP"
-                        gui.Size = UDim2.new(0, 100, 0, 40)
-                        gui.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", gui)
-                        txt.Size = UDim2.new(1,0,1,0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = "🍎 FRUTA"
-                        txt.TextColor3 = Color3.fromRGB(255,0,0)
-                        txt.TextScaled = true
-                        txt.Font = Enum.Font.SourceSansBold
-                    end
+                if v:IsA("Tool") and v:FindFirstChild("Handle") and not v.Handle:FindFirstChild("FruitESP") then
+                    local gui = Instance.new("BillboardGui", v.Handle)
+                    gui.Name = "FruitESP"
+                    gui.Size = UDim2.new(0, 100, 0, 40)
+                    gui.AlwaysOnTop = true
+                    local txt = Instance.new("TextLabel", gui)
+                    txt.Size = UDim2.new(1,0,1,0)
+                    txt.BackgroundTransparency = 1
+                    txt.Text = "🍎 " .. v.Name
+                    txt.TextColor3 = Color3.fromRGB(255,0,0)
+                    txt.TextScaled = true
                 end
-            end
-        else
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "FruitESP" then v:Destroy() end
-            end
-        end
-    end
-end)
-
--- 4. ESP DE PLAYERS
-spawn(function()
-    while task.wait(1) do
-        if _G.PlayerESP then
-            for _, plr in pairs(game.Players:GetPlayers()) do
-                if plr ~= game.Players.LocalPlayer and plr.Character then
-                    local head = plr.Character:FindFirstChild("Head")
-                    if head and not head:FindFirstChild("PlayerESP") then
-                        local gui = Instance.new("BillboardGui", head)
-                        gui.Name = "PlayerESP"
-                        gui.Size = UDim2.new(0, 100, 0, 40)
-                        gui.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", gui)
-                        txt.Size = UDim2.new(1,0,1,0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = plr.Name
-                        txt.TextColor3 = Color3.fromRGB(0,255,0)
-                        txt.TextScaled = true
-                        txt.Font = Enum.Font.SourceSansBold
-                    end
-                end
-            end
-        else
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "PlayerESP" then v:Destroy() end
             end
         end
     end
@@ -202,18 +157,9 @@ end)
 
 -- INTERFACE
 Tabs.Main:AddToggle("FarmToggle", {
-    Title = "Auto Farm (Voo Estabilizado)",
+    Title = "Auto Farm (Quest Inteligente)",
     Default = false,
-    Callback = function(v)
-        _G.AutoFarm = v
-        if not v and CurrentTween then 
-            CurrentTween:Cancel() 
-            local lp = game.Players.LocalPlayer
-            if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
-                lp.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            end
-        end
-    end
+    Callback = function(v) _G.AutoFarm = v end
 })
 
 Tabs.Main:AddToggle("AttackToggle", {
@@ -222,21 +168,10 @@ Tabs.Main:AddToggle("AttackToggle", {
     Callback = function(v) _G.AutoAttack = v end
 })
 
-Tabs.Visuals:AddSection("Sistema de ESP")
 Tabs.Visuals:AddToggle("FruitESPToggle", {
     Title = "ESP de Frutas",
     Default = false,
     Callback = function(v) _G.FruitESP = v end
 })
-
-Tabs.Visuals:AddToggle("PlayerESPToggle", {
-    Title = "ESP de Jogadores",
-    Default = false,
-    Callback = function(v) _G.PlayerESP = v end
-})
-
-Tabs.Visuals:AddSection("Opções de Fruta")
-Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
-Tabs.Visuals:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
 
 Window:SelectTab(1)
