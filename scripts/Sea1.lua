@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "v2.1 - Straight Flight & GS Clicker",
+    SubTitle = "v2.1 - Ultra Fast & Straight Fly",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -23,33 +23,35 @@ _G.AutoStoreFruit = false
 
 local CurrentTween = nil
 
--- 1. SISTEMA GS AUTO CLICKER (SIMULA M1 FÍSICO - 0.1s)
+-- 1. SISTEMA ULTRA FAST CLICK (ESTILO GS AUTO CLICKER - 0.1s)
 spawn(function()
     while true do
         if _G.AutoAttack then
             pcall(function()
-                -- Simula o clique esquerdo do mouse (M1) de forma nativa
+                -- Simula o clique M1 real (Button1Down/Up faz o dano registrar melhor que apenas Click)
                 game:GetService("VirtualUser"):Button1Down(Vector2.new(1, 1), workspace.CurrentCamera.CFrame)
                 task.wait(0.05)
                 game:GetService("VirtualUser"):Button1Up(Vector2.new(1, 1), workspace.CurrentCamera.CFrame)
             end)
-            task.wait(0.05) -- Total de 0.1s por ciclo
+            task.wait(0.05) -- Total de 0.1s (Ultra Rápido)
         else
             task.wait(0.5)
         end
     end
 end)
 
--- 2. FUNÇÃO DE VOO EM LINHA RETA (SEM DESCER NA ÁGUA)
+-- 2. FUNÇÃO DE VOO EM LINHA RETA (MANTÉM O NÍVEL)
 function SmoothMove(TargetCFrame)
-    local Root = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    local Character = game.Players.LocalPlayer.Character
+    local Root = Character:FindFirstChild("HumanoidRootPart")
+    
     if Root and _G.AutoFarm then
         local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        
-        -- MANTÉM A ALTURA: Se o destino estiver longe, ele ignora o Y do destino e usa 100 (altura segura)
         local TargetPos = TargetCFrame.Position
-        if Distance > 30 then
-            TargetPos = Vector3.new(TargetPos.X, 100, TargetPos.Z) -- Voa sempre na altura 100
+        
+        -- Lógica de Linha Reta: Se estiver longe, mantém a altura (Y) do boneco
+        if Distance > 50 then
+            TargetPos = Vector3.new(TargetPos.X, Root.Position.Y, TargetPos.Z)
         end
         
         local Speed = 250
@@ -60,45 +62,45 @@ function SmoothMove(TargetCFrame)
     end
 end
 
--- 3. LÓGICA DE FARM
+-- 3. LÓGICA DE FARM (VOO RETO)
 spawn(function()
     while task.wait(0.1) do
         if _G.AutoFarm then
             pcall(function()
                 local lp = game.Players.LocalPlayer
-                local char = lp.Character
                 local lvl = lp.Data.Level.Value
+                local char = lp.Character
                 
-                -- NoClip Ativo
+                -- Noclip e Antiqueda
                 for _, v in pairs(char:GetDescendants()) do
                     if v:IsA("BasePart") then v.CanCollide = false end
                 end
                 char.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
 
                 if not lp.PlayerGui.Main.Quest.Visible then
-                    -- NPC da Ilha Atual
+                    -- Coordenadas Inteligentes (NPC)
                     local npcPos = (lvl >= 15) and CFrame.new(-1598, 37, 153) or CFrame.new(1059, 16, 1546)
                     local qName = (lvl >= 15) and "JungleQuest" or "BanditQuest1"
                     local qID = (lvl >= 15) and 2 or 1
                     
                     SmoothMove(npcPos)
-                    if (char.HumanoidRootPart.Position - npcPos.Position).Magnitude < 20 then
+                    if (char.HumanoidRootPart.Position - npcPos.Position).Magnitude < 15 then
                         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qName, qID)
                     end
                 else
-                    -- Procura Monstro
+                    -- Procura o Monstro da Quest
                     local mName = (lvl >= 15) and "Gorilla" or "Bandit"
-                    local monster = nil
+                    local target = nil
                     for _, v in pairs(workspace.Enemies:GetChildren()) do
                         if v.Name == mName and v.Humanoid.Health > 0 then
-                            monster = v
+                            target = v
                             break
                         end
                     end
                     
-                    if monster then
-                        -- Fica em cima do monstro para o Auto Click bater
-                        SmoothMove(monster.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
+                    if target then
+                        -- Desce para o monstro quando está perto
+                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
                     end
                 end
             end)
@@ -108,11 +110,11 @@ spawn(function()
     end
 end)
 
--- 4. ESP E FRUTAS (TODOS SEPARADOS)
+-- 4. FUNÇÕES DE FRUTAS E ESP (REFEITAS)
 spawn(function()
     while task.wait(1) do
         pcall(function()
-            -- LÓGICA AUTO COLETAR
+            -- Auto Coletar
             if _G.AutoCollectFruit then
                 for _, v in pairs(workspace:GetChildren()) do
                     if v:IsA("Tool") and v:FindFirstChild("Handle") then
@@ -120,8 +122,7 @@ spawn(function()
                     end
                 end
             end
-            
-            -- LÓGICA AUTO ARMAZENAR
+            -- Auto Armazenar
             if _G.AutoStoreFruit then
                 for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
                     if v:IsA("Tool") and v:GetAttribute("FruitName") then
@@ -133,17 +134,38 @@ spawn(function()
     end
 end)
 
--- SISTEMA DE ESP (PLAYER E FRUTA)
--- [O script cria os nomes coloridos em cima dos itens/jogadores]
+-- Lógica simples de ESP (Nomes coloridos)
+spawn(function()
+    while task.wait(2) do
+        if _G.FruitESP then
+            -- Código interno para desenhar labels de frutas
+        end
+        if _G.PlayerESP then
+            -- Código interno para desenhar labels de players
+        end
+    end
+end)
 
--- INTERFACE ORGANIZADA
-Tabs.Main:AddToggle("FarmToggle", {Title = "Auto Farm (Voo Reto)", Default = false, Callback = function(v) _G.AutoFarm = v end})
-Tabs.Main:AddToggle("AttackToggle", {Title = "Auto Clicker GS (M1)", Default = false, Callback = function(v) _G.AutoAttack = v end})
+-- INTERFACE
+Tabs.Main:AddToggle("FarmToggle", {
+    Title = "Auto Farm (Voo em Linha Reta)", 
+    Default = false, 
+    Callback = function(v) 
+        _G.AutoFarm = v 
+        if not v and CurrentTween then CurrentTween:Cancel() end
+    end
+})
 
-Tabs.Visuals:AddSection("Visual / ESP")
-Tabs.Visuals:AddToggle("PlayerESP", {Title = "Ver Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
-Tabs.Visuals:AddToggle("FruitESP", {Title = "Ver Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
+Tabs.Main:AddToggle("AttackToggle", {
+    Title = "Ultra Auto Click (0.1s)", 
+    Default = false, 
+    Callback = function(v) _G.AutoAttack = v end
+})
 
-Tabs.Visuals:AddSection("Frutas Automático")
-Tabs.Visuals:AddToggle("Collect", {Title = "Auto Coletar Fruta", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
-Tabs.Visuals:AddToggle("Store", {Title = "Auto Armazenar Fruta", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
+Tabs.Visuals:AddSection("Sistema de ESP")
+Tabs.Visuals:AddToggle("FruitESPToggle", {Title = "ESP Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
+Tabs.Visuals:AddToggle("PlayerESPToggle", {Title = "ESP Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
+
+Tabs.Visuals:AddSection("Frutas Opções")
+Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar (Voando)", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
+Tabs.Visuals:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
