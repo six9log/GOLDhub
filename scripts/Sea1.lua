@@ -13,20 +13,25 @@ local Tabs = { Main = Window:AddTab({ Title = "Farm", Icon = "home" }) }
 local Options = Fluent.Options
 _G.AutoFarm = false
 
--- NOVO SISTEMA DE ATAQUE (SEM CLIQUES NA TELA)
-local function Kill()
-    pcall(function()
-        local player = game.Players.LocalPlayer
-        local character = player.Character
-        -- Tenta ativar a ferramenta que está na mão
-        local tool = character:FindFirstChildOfClass("Tool")
-        if tool then
-            tool:Activate()
+-- FUNÇÃO DE CLIQUE NO MEIO DA TELA (0.1s de delay)
+spawn(function()
+    while true do
+        task.wait(0.1) -- Delay de 0.100 segundos solicitado
+        if _G.AutoFarm then
+            pcall(function()
+                local char = game.Players.LocalPlayer.Character
+                if char and char:FindFirstChildOfClass("Tool") then
+                    -- Simula o clique no centro exato da tela
+                    local VUser = game:GetService("VirtualUser")
+                    VUser:CaptureController()
+                    VUser:Button1Down(Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2))
+                end
+            end)
         end
-    end)
-end
+    end
+end)
 
--- ANTI-QUEDA E NOCLIP (PARA NÃO FICAR TRAVADO)
+-- SISTEMA ANTI-QUEDA E NOCLIP
 game:GetService("RunService").Stepped:Connect(function()
     if _G.AutoFarm then
         pcall(function()
@@ -47,7 +52,7 @@ game:GetService("RunService").Stepped:Connect(function()
     end
 end)
 
--- LÓGICA DE FARM MELHORADA
+-- LÓGICA DE MOVIMENTAÇÃO
 spawn(function()
     while true do
         task.wait()
@@ -57,27 +62,19 @@ spawn(function()
                 local questGui = player.PlayerGui.Main.Quest
                 
                 if not questGui.Visible then
-                    -- Vai para o NPC da Missão
                     player.Character.HumanoidRootPart.CFrame = CFrame.new(1059, 16, 1546)
                     task.wait(0.5)
                     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", "BanditQuest1", 1)
                 else
-                    -- Procura o Bandit
                     local Monster = game:GetService("Workspace").Enemies:FindFirstChild("Bandit")
                     if Monster and Monster:FindFirstChild("HumanoidRootPart") and Monster.Humanoid.Health > 0 then
-                        -- Fica mais próximo (6 studs) para o combate alcançar
-                        player.Character.HumanoidRootPart.CFrame = Monster.HumanoidRootPart.CFrame * CFrame.new(0, 6, 0)
+                        -- Fica a 7 studs de altura (ideal para o clique no centro pegar)
+                        player.Character.HumanoidRootPart.CFrame = Monster.HumanoidRootPart.CFrame * CFrame.new(0, 7, 0)
                         
-                        -- Equipar Combate
-                        local tool = player.Backpack:FindFirstChild("Combate") or player.Backpack:FindFirstChild("Combat") or player.Character:FindFirstChildOfClass("Tool")
-                        if tool and not player.Character:FindFirstChild(tool.Name) then
-                            player.Character.Humanoid:EquipTool(tool)
-                        end
-                        
-                        -- Atacar
-                        Kill()
+                        -- Equipar Arma
+                        local tool = player.Backpack:FindFirstChildOfClass("Tool") or player.Character:FindFirstChildOfClass("Tool")
+                        if tool then player.Character.Humanoid:EquipTool(tool) end
                     else
-                        -- Se o Bandit morreu, espera no ponto de spawn
                         player.Character.HumanoidRootPart.CFrame = CFrame.new(1145, 20, 1630)
                     end
                 end
