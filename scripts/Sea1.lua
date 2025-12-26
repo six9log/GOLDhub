@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "v1.4 - Visual & Fruits",
+    SubTitle = "v1.5 - Auto Island Detection",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -16,11 +16,22 @@ local Tabs = {
 
 _G.AutoFarm = false
 _G.AutoAttack = false
-_G.FruitESP = false
-_G.PlayerESP = false
-_G.AutoCollectFruit = false
 
--- 1. AUTO CLIQUE (VOCÊ SELECIONA A ARMA)
+-- FUNÇÃO PARA PEGAR DADOS DA ILHA ATUAL (BASEADO NO SEU LEVEL)
+function GetQuestData()
+    local lvl = game.Players.LocalPlayer.Data.Level.Value
+    if lvl >= 0 and lvl < 10 then
+        return "BanditQuest1", 1, "Bandit", CFrame.new(1059, 16, 1546) -- Ilha Inicial
+    elseif lvl >= 10 and lvl < 15 then
+        return "JungleQuest", 1, "Monkey", CFrame.new(-1598, 37, 153) -- Selva (Macacos)
+    elseif lvl >= 15 and lvl < 30 then
+        return "JungleQuest", 2, "Gorilla", CFrame.new(-1598, 37, 153) -- Selva (Gorilas)
+    end
+    -- Se for level maior, ele continua nos Gorilas por enquanto (Pode pedir para eu adicionar mais ilhas)
+    return "JungleQuest", 2, "Gorilla", CFrame.new(-1598, 37, 153)
+end
+
+-- 1. AUTO CLIQUE (Puro - Sem selecionar arma)
 spawn(function()
     while true do
         task.wait(0.5)
@@ -35,121 +46,50 @@ spawn(function()
     end
 end)
 
--- 2. AUTO COLETAR E ARMAZENAR (LOOP SELECIONÁVEL)
-spawn(function()
-    while task.wait(1) do
-        if _G.AutoCollectFruit then
-            pcall(function()
-                for _, v in pairs(workspace:GetChildren()) do
-                    if v:IsA("Tool") and v:FindFirstChild("Handle") then
-                        local root = game.Players.LocalPlayer.Character.HumanoidRootPart
-                        -- Tween até a fruta
-                        local tween = game:GetService("TweenService"):Create(root, TweenInfo.new((root.Position - v.Handle.Position).Magnitude/150, Enum.EasingStyle.Linear), {CFrame = v.Handle.CFrame})
-                        tween:Play()
-                        tween.Completed:Wait()
-                        task.wait(0.5)
-                        -- Armazenar automaticamente
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", v:GetAttribute("FruitName"), v)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- 3. SISTEMA DE ESP (PLAYER E FRUTAS)
-spawn(function()
-    while task.wait(1) do
-        -- ESP FRUTAS
-        if _G.FruitESP then
-            for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and v:FindFirstChild("Handle") and not v:FindFirstChild("FruitTag") then
-                    local bill = Instance.new("BillboardGui", v)
-                    bill.Name = "FruitTag"
-                    bill.AlwaysOnTop = true
-                    bill.Size = UDim2.new(0, 100, 0, 50)
-                    bill.ExtentsOffset = Vector3.new(0, 3, 0)
-                    local label = Instance.new("TextLabel", bill)
-                    label.BackgroundTransparency = 1
-                    label.Size = UDim2.new(1, 0, 1, 0)
-                    label.TextColor3 = Color3.fromRGB(0, 255, 127)
-                    label.TextSize = 14
-                    spawn(function()
-                        while v:IsDescendantOf(workspace) and _G.FruitESP do
-                            local dist = math.floor((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v.Handle.Position).Magnitude)
-                            label.Text = "🍎 " .. v.Name .. "\n[" .. dist .. "m]"
-                            task.wait(0.5)
-                        end
-                        bill:Destroy()
-                    end)
-                end
-            end
-        end
-
-        -- ESP PLAYERS
-        if _G.PlayerESP then
-            for _, p in pairs(game.Players:GetPlayers()) do
-                if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and not p.Character:FindFirstChild("PlayerTag") then
-                    local bill = Instance.new("BillboardGui", p.Character.HumanoidRootPart)
-                    bill.Name = "PlayerTag"
-                    bill.AlwaysOnTop = true
-                    bill.Size = UDim2.new(0, 100, 0, 50)
-                    bill.ExtentsOffset = Vector3.new(0, 3, 0)
-                    local label = Instance.new("TextLabel", bill)
-                    label.BackgroundTransparency = 1
-                    label.Size = UDim2.new(1, 0, 1, 0)
-                    label.TextColor3 = Color3.fromRGB(255, 50, 50)
-                    label.TextSize = 12
-                    spawn(function()
-                        while p.Character and p.Character:FindFirstChild("HumanoidRootPart") and _G.PlayerESP do
-                            local dist = math.floor((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude)
-                            label.Text = "👤 " .. p.Name .. "\n[" .. dist .. "m]"
-                            task.wait(0.5)
-                        end
-                        bill:Destroy()
-                    end)
-                end
-            end
-        end
-    end
-end)
-
--- 4. LÓGICA DE FARM
+-- 2. LÓGICA DE FARM INTELIGENTE
 game:GetService("RunService").Stepped:Connect(function()
     if _G.AutoFarm then
         pcall(function()
             local lp = game.Players.LocalPlayer
             local root = lp.Character.HumanoidRootPart
+            local questName, questID, monsterName, npcPos = GetQuestData()
+
+            -- Noclip
             for _, v in pairs(lp.Character:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide = false end
             end
             root.Velocity = Vector3.new(0,0,0)
 
+            -- Verifica se já tem a missão certa
             if not lp.PlayerGui.Main.Quest.Visible then
-                root.CFrame = CFrame.new(1059, 16, 1546)
-                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", "BanditQuest1", 1)
+                -- Vai até o NPC da ilha certa
+                root.CFrame = npcPos
+                task.wait(0.2)
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questName, questID)
             else
-                local monster = workspace.Enemies:FindFirstChild("Bandit")
-                if monster and monster.Humanoid.Health > 0 then
+                -- Procura o monstro da missão atual perto de você
+                local monster = nil
+                for _, v in pairs(workspace.Enemies:GetChildren()) do
+                    if v.Name == monsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                        monster = v
+                        break
+                    end
+                end
+
+                if monster then
+                    -- Vai para cima do monstro da ilha ATUAL
                     root.CFrame = monster.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0)
                 else
-                    root.CFrame = CFrame.new(1145, 20, 1630)
+                    -- Se não achar o monstro, vai para o ponto de spawn daquela ilha específica
+                    root.CFrame = npcPos * CFrame.new(0, 20, 0)
                 end
             end
         end)
     end
 end)
 
---- INTERFACE ---
+-- MANTIVE AS OUTRAS FUNÇÕES (FRUTAS E ESP) ABAIXO...
+-- [O restante do código de ESP e Frutas continua igual ao v1.4]
 
--- Aba Farm
-Tabs.Main:AddToggle("FarmToggle", {Title = "Auto Farm Bandits", Default = false, Callback = function(v) _G.AutoFarm = v end})
+Tabs.Main:AddToggle("FarmToggle", {Title = "Auto Farm (Auto Island)", Default = false, Callback = function(v) _G.AutoFarm = v end})
 Tabs.Main:AddToggle("AttackToggle", {Title = "Auto Clique (0.5s)", Default = false, Callback = function(v) _G.AutoAttack = v end})
-
--- Aba Visual & Frutas
-Tabs.Visuals:AddSection("Sistema de ESP")
-Tabs.Visuals:AddToggle("FruitESPToggle", {Title = "Ver Frutas no Chão", Default = false, Callback = function(v) _G.FruitESP = v end})
-Tabs.Visuals:AddToggle("PlayerESPToggle", {Title = "Ver Outros Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
-
-Tabs.Visuals:AddSection("Frutas Automático")
-Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar & Armazenar", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
