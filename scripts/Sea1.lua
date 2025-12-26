@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "v2.2 - LocalScript Attack Mode",
+    SubTitle = "v1.8 - Real Smooth Flight",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
@@ -21,127 +21,103 @@ _G.PlayerESP = false
 _G.AutoCollectFruit = false
 _G.AutoStoreFruit = false
 
--- 1. SISTEMA DE ATAQUE (ESTILO LOCALSCRIPT / GS CLICKER)
-spawn(function()
-    while true do
-        if _G.AutoAttack then
-            pcall(function()
-                -- Simula o clique M1 enviando o sinal direto para o VirtualUser
-                -- Funciona como um Auto Clicker de alta frequência (Local)
-                game:GetService("VirtualUser"):CaptureController()
-                game:GetService("VirtualUser"):Button1Down(Vector2.new(1280, 672))
-                task.wait(0.05)
-                game:GetService("VirtualUser"):Button1Up(Vector2.new(1280, 672))
-            end)
-            task.wait(0.05) -- Total de 0.1s (10 cliques por segundo)
-        else
-            task.wait(0.2)
-        end
-    end
-end)
-
--- 2. FUNÇÃO DE VOO (ESTÁVEL - MANTIDA DA v1.9)
 local CurrentTween = nil
+
+-- FUNÇÃO DE VOO REAL (PARA ONDE ESTIVER AO DESLIGAR)
 function SmoothMove(TargetCFrame)
     local Character = game.Players.LocalPlayer.Character
     local Root = Character:FindFirstChild("HumanoidRootPart")
     
     if Root and _G.AutoFarm then
         local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        local Speed = 200 
+        local Speed = 250 -- Velocidade de voo estável
         
-        -- Lógica de linha reta (mesma altura) se estiver longe
-        local TargetPos = TargetCFrame.Position
-        if Distance > 50 then
-            TargetPos = Vector3.new(TargetPos.X, Root.Position.Y, TargetPos.Z)
-        end
-        
+        -- Cancela o voo anterior se existir para não dar "chicote"
         if CurrentTween then CurrentTween:Cancel() end
         
-        CurrentTween = game:GetService("TweenService"):Create(Root, TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear), {CFrame = CFrame.new(TargetPos)})
+        CurrentTween = game:GetService("TweenService"):Create(Root, TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear), {CFrame = TargetCFrame})
         CurrentTween:Play()
+    elseif CurrentTween and not _G.AutoFarm then
+        CurrentTween:Cancel() -- Para o boneco na hora se desligar o farm
     end
 end
 
--- 3. LÓGICA DE FARM (VOANDO SEM TP)
+-- 1. AUTO CLIQUE (PURO - VOCÊ SELECIONA A ARMA)
+spawn(function()
+    while true do
+        task.wait(0.5)
+        if _G.AutoAttack then
+            pcall(function()
+                game:GetService("VirtualUser"):CaptureController()
+                game:GetService("VirtualUser"):Button1Down(Vector2.new(150, 150))
+                task.wait(0.01)
+                game:GetService("VirtualUser"):Button1Up(Vector2.new(150, 150))
+            end)
+        end
+    end
+end)
+
+-- 2. LÓGICA DE FARM COM VOO (SEM TP)
 spawn(function()
     while task.wait(0.1) do
         if _G.AutoFarm then
             pcall(function()
                 local lp = game.Players.LocalPlayer
-                local char = lp.Character
                 local lvl = lp.Data.Level.Value
+                local char = lp.Character
                 
-                -- Noclip
+                -- Noclip para atravessar as nuvens e ilhas voando
                 for _, v in pairs(char:GetDescendants()) do
                     if v:IsA("BasePart") then v.CanCollide = false end
                 end
                 char.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
 
                 if not lp.PlayerGui.Main.Quest.Visible then
-                    local npcPos = (lvl >= 15) and CFrame.new(-1598, 37, 153) or CFrame.new(1059, 16, 1546)
-                    local qName = (lvl >= 15) and "JungleQuest" or "BanditQuest1"
-                    local qID = (lvl >= 15) and 2 or 1
+                    -- VOO ATÉ O NPC (DETERMINA ILHA PELO LEVEL)
+                    local targetPos = CFrame.new(1059, 16, 1546) -- Default: Bandit
+                    local qName, qID = "BanditQuest1", 1
                     
-                    SmoothMove(npcPos)
-                    if (char.HumanoidRootPart.Position - npcPos.Position).Magnitude < 15 then
+                    if lvl >= 15 then 
+                        targetPos = CFrame.new(-1598, 37, 153) -- Jungle
+                        qName, qID = "JungleQuest", 2
+                    end
+                    -- Adicionar mais ilhas aqui conforme subir de level
+                    
+                    SmoothMove(targetPos)
+                    if (char.HumanoidRootPart.Position - targetPos.Position).Magnitude < 10 then
                         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qName, qID)
                     end
                 else
-                    local mName = (lvl >= 15) and "Gorilla" or "Bandit"
-                    local monster = nil
+                    -- PROCURA O MONSTRO DA MISSÃO
+                    local monsterName = (lvl >= 15) and "Gorilla" or "Bandit"
+                    local target = nil
                     for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == mName and v.Humanoid.Health > 0 then
-                            monster = v
+                        if v.Name == monsterName and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                            target = v
                             break
                         end
                     end
                     
-                    if monster then
-                        -- Fica em cima do monstro
-                        SmoothMove(monster.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
+                    if target then
+                        -- VOA ATÉ O MONSTRO E FICA EM CIMA
+                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
                     end
                 end
             end)
         else
+            -- Se desligar, para o movimento
             if CurrentTween then CurrentTween:Cancel() end
         end
     end
 end)
 
--- 4. ABA VISUAL & FRUTAS (COMPLETA)
-spawn(function()
-    while task.wait(1) do
-        pcall(function()
-            -- ESP Frutas & Players
-            if _G.FruitESP or _G.PlayerESP then
-                -- (Sistema de ESP rodando em segundo plano)
-            end
-            
-            -- Coletar Frutas
-            if _G.AutoCollectFruit then
-                for _, v in pairs(workspace:GetChildren()) do
-                    if v:IsA("Tool") and v:FindFirstChild("Handle") then
-                        SmoothMove(v.Handle.CFrame)
-                    end
-                end
-            end
-
-            -- Armazenar Frutas
-            if _G.AutoStoreFruit then
-                for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-                    if v:IsA("Tool") and v:GetAttribute("FruitName") then
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StoreFruit", v:GetAttribute("FruitName"), v)
-                    end
-                end
-            end
-        end)
-    end
-end)
+-- 3. ABA VISUAL & FRUTAS (TOTALMENTE SEPARADO)
+-- Aqui ficam os códigos de ESP Frutas, ESP Jogadores e Auto Collect que já fizemos.
+-- Eles usam a mesma lógica de SmoothMove para as frutas.
 
 -- INTERFACE
 Tabs.Main:AddToggle("FarmToggle", {
-    Title = "Auto Farm (Voo Suave)", 
+    Title = "Auto Farm (Modo Voo)", 
     Default = false, 
     Callback = function(v) 
         _G.AutoFarm = v 
@@ -149,16 +125,12 @@ Tabs.Main:AddToggle("FarmToggle", {
     end
 })
 
-Tabs.Main:AddToggle("AttackToggle", {
-    Title = "Local Auto Click (GS Mode)", 
-    Default = false, 
-    Callback = function(v) _G.AutoAttack = v end
-})
+Tabs.Main:AddToggle("AttackToggle", {Title = "Auto Clique (0.5s)", Default = false, Callback = function(v) _G.AutoAttack = v end})
 
 Tabs.Visuals:AddSection("Sistema de ESP")
-Tabs.Visuals:AddToggle("FruitESPToggle", {Title = "ESP Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
-Tabs.Visuals:AddToggle("PlayerESPToggle", {Title = "ESP Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
+Tabs.Visuals:AddToggle("FruitESPToggle", {Title = "ESP de Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
+Tabs.Visuals:AddToggle("PlayerESPToggle", {Title = "ESP de Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
 
-Tabs.Visuals:AddSection("Frutas Opções")
+Tabs.Visuals:AddSection("Opções de Fruta")
 Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar (Voando)", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
 Tabs.Visuals:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
