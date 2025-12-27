@@ -1,172 +1,264 @@
+--[[
+    GOLD HUB | SEA 1
+    v1.9 - Auto Quest System
+    Interface: Fluent
+]]
+
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "GOLD HUB | ZENITH FINAL v6.2",
-    SubTitle = "Sea 1 Complete - Fixed Fruit System",
+    Title = "GOLD HUB | SEA 1",
+    SubTitle = "v1.9 - Auto Quest System",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.Home
+    Theme = "Dark"
 })
 
 local Tabs = { 
-    Main = Window:AddTab({ Title = "Farm & Stats", Icon = "home" }),
-    Combat = Window:AddTab({ Title = "Combat & PvP", Icon = "swords" }),
-    Boss = Window:AddTab({ Title = "Auto Boss", Icon = "skull" }),
-    Puzzles = Window:AddTab({ Title = "Quests & Hakis", Icon = "star" }),
-    Fruit = Window:AddTab({ Title = "Frutas & Gacha", Icon = "apple" })
+    Main = Window:AddTab({ Title = "Farm", Icon = "home" }),
+    Visuals = Window:AddTab({ Title = "Visual & Frutas", Icon = "apple" })
 }
 
--- CONFIGURAÇÕES GLOBAIS
-_G.AutoFarm = false; _G.AutoAttack = false; _G.AutoStats = false; _G.StatSelect = "Melee"
-_G.TargetBoss = ""; _G.AutoBoss = false; _G.TargetPlayer = ""; _G.TPPlayer = false
-_G.Aimlock = false; _G.FruitESP = false; _G.AutoCollectPull = false; _G.AutoCollectTween = false
-_G.FruitLock = false
+_G.AutoFarm = false
+_G.AutoAttack = false
+_G.FruitESP = false
+_G.PlayerESP = false
 
 local CurrentTween = nil
-function SmoothMove(TargetCFrame, SpeedOverride)
-    local Root = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if Root then
+
+-- BOTÃO FLUTUANTE REDONDO PARA MINIMIZAR/ABRIR MENU
+local UIS = game:GetService("UserInputService")
+local PlayerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local FloatGui = Instance.new("ScreenGui")
+FloatGui.Name = "FloatToggleGui"
+FloatGui.Parent = PlayerGui
+FloatGui.ResetOnSpawn = false
+
+local Button = Instance.new("TextButton")
+Button.Parent = FloatGui
+Button.Size = UDim2.new(0, 55, 0, 55)
+Button.Position = UDim2.new(0, 20, 0.5, -25)
+Button.Text = "☰"
+Button.TextSize = 28
+Button.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+Button.TextColor3 = Color3.fromRGB(0, 0, 0)
+Button.BorderSizePixel = 0
+Button.AutoButtonColor = true
+Button.Draggable = true
+Button.Active = true
+
+local Corner = Instance.new("UICorner", Button)
+Corner.CornerRadius = UDim.new(1, 0)
+
+local Stroke = Instance.new("UIStroke", Button)
+Stroke.Thickness = 2
+Stroke.Color = Color3.fromRGB(0, 0, 0)
+
+local MenuVisible = true
+Button.MouseButton1Click:Connect(function()
+    MenuVisible = not MenuVisible
+    Window:SetVisible(MenuVisible)
+end)
+
+-- FUNÇÃO DE VOO ESTABILIZADA
+function SmoothMove(TargetCFrame)
+    local Character = game.Players.LocalPlayer.Character
+    local Root = Character:FindFirstChild("HumanoidRootPart")
+    local Hum = Character:FindFirstChildOfClass("Humanoid")
+    
+    if Root and Hum and _G.AutoFarm then
+        if Hum:GetState() ~= Enum.HumanoidStateType.Physics then
+            Hum:ChangeState(Enum.HumanoidStateType.Physics)
+        end
+        Root.Velocity = Vector3.new(0,0,0)
+        Root.RotVelocity = Vector3.new(0,0,0)
+
         local Distance = (TargetCFrame.Position - Root.Position).Magnitude
+        local Speed = 250 
+        
         if CurrentTween then CurrentTween:Cancel() end
-        CurrentTween = game:GetService("TweenService"):Create(Root, TweenInfo.new(Distance/(SpeedOverride or 225), Enum.EasingStyle.Linear), {CFrame = TargetCFrame})
+        
+        CurrentTween = game:GetService("TweenService"):Create(
+            Root,
+            TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),
+            {CFrame = TargetCFrame}
+        )
         CurrentTween:Play()
+    elseif not _G.AutoFarm then
+        if CurrentTween then CurrentTween:Cancel() end
+        if Hum then Hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
     end
 end
 
--- SISTEMA DE FRUTAS (ESP + DISTÂNCIA + COLETA)
-spawn(function()
-    while task.wait(0.3) do
-        local fruitFound = false
-        for _, v in pairs(workspace:GetChildren()) do
-            if v:IsA("Tool") and v:FindFirstChild("Handle") then
-                local dist = math.floor((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v.Handle.Position).Magnitude)
-                
-                -- ESP COM DISTÂNCIA
-                if _G.FruitESP then
-                    local gui = v.Handle:FindFirstChild("FruitESP")
-                    if not gui then
-                        gui = Instance.new("BillboardGui", v.Handle)
-                        gui.Name = "FruitESP"; gui.Size = UDim2.new(0,150,0,50); gui.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", gui)
-                        txt.Name = "Label"; txt.Size = UDim2.new(1,0,1,0); txt.BackgroundTransparency = 1; txt.TextColor3 = Color3.fromRGB(255,0,0); txt.TextScaled = true; txt.Font = "SourceSansBold"
-                    end
-                    gui.Label.Text = "🍎 " .. v.Name .. "\n[" .. dist .. "m]"
-                else
-                    if v.Handle:FindFirstChild("FruitESP") then v.Handle.FruitESP:Destroy() end
-                end
-
-                -- COLETA AGRESSIVA (PULL)
-                if _G.AutoCollectPull then
-                    v.Handle.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-                
-                -- COLETA SUAVE (TWEEN)
-                elseif _G.AutoCollectTween then
-                    _G.FruitLock = true
-                    fruitFound = true
-                    SmoothMove(v.Handle.CFrame, 300)
-                end
-            end
-        end
-        if not fruitFound then _G.FruitLock = false end
-    end
-end)
-
--- AUTO STATS
-spawn(function()
-    while task.wait(1) do
-        if _G.AutoStats then
-            local p = game.Players.LocalPlayer.Data.Points.Value
-            if p > 0 then game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddStats", _G.StatSelect, p) end
-        end
-    end
-end)
-
--- LÓGICA DE FARM (SEA 1 COMPLETO)
-function GetQuest()
-    local lv = game.Players.LocalPlayer.Data.Level.Value
-    if lv < 10 then return "BanditQuest1", 1, "Bandit", CFrame.new(1059,16,1546), CFrame.new(1145,25,1630)
-    elseif lv < 30 then return "JungleQuest", 2, "Gorilla", CFrame.new(-1598,37,153), CFrame.new(-1240,15,497)
-    elseif lv < 60 then return "BuggyQuest1", 2, "Brute", CFrame.new(-1141,4,3828), CFrame.new(-1340,15,4120)
-    elseif lv < 90 then return "DesertQuest", 2, "Desert Officer", CFrame.new(896,28,4391), CFrame.new(1530,28,4380)
-    elseif lv < 120 then return "SnowQuest", 2, "Snowman", CFrame.new(1385,15,-1310), CFrame.new(1300,25,-1500)
-    elseif lv < 150 then return "MarineQuest2", 1, "Chief Petty Officer", CFrame.new(-4855,22,4330), CFrame.new(-4800,22,4400)
-    elseif lv < 250 then return "PrisonQuest", 2, "Dangerous Prisoner", CFrame.new(5307,1,475), CFrame.new(5400,1,500)
-    else return "MagmaQuest", 1, "Military Soldier", CFrame.new(-5315,12,8517), CFrame.new(-5300,20,8600) end
-end
-
--- PVP
-local PlayerDrop = Tabs.Combat:AddDropdown("PDrop", {Title = "Selecionar Jogador", Values = {}, Callback = function(v) _G.TargetPlayer = v end})
-Tabs.Combat:AddButton({Title = "Atualizar Jogadores", Callback = function() 
-    local plrs = {} for _,v in pairs(game.Players:GetPlayers()) do if v ~= game.Players.LocalPlayer then table.insert(plrs, v.Name) end end
-    PlayerDrop:SetValues(plrs)
-end})
-Tabs.Combat:AddToggle("TPPlr", {Title = "Perseguir Jogador (TP)", Default = false, Callback = function(v) _G.TPPlayer = v end})
-Tabs.Combat:AddToggle("Aim", {Title = "Aimlock (Aimbot)", Default = false, Callback = function(v) _G.Aimlock = v end})
-
--- BOSS & PUZZLES
-Tabs.Boss:AddDropdown("BDrop", {Title = "Lista de Bosses", Values = {"Greybeard [Lv. 750]", "Saber Expert [Lv. 200]", "The Saw [Lv. 100]", "Vice Admiral", "Magma Admiral", "Fishman Lord"}, Callback = function(v) _G.TargetBoss = v end})
-Tabs.Boss:AddToggle("ABoss", {Title = "Matar Boss Selecionado", Default = false, Callback = function(v) _G.AutoBoss = v end})
-
-Tabs.Puzzles:AddButton({Title = "Puzzle Shanks (5 Botões)", Callback = function()
-    local b = {CFrame.new(-1613,35,149), CFrame.new(-1540,36,210), CFrame.new(-1533,40,31), CFrame.new(-1371,35,33), CFrame.new(-1381,36,178)}
-    for _,p in pairs(b) do SmoothMove(p) task.wait(1.5) end
-end})
-Tabs.Puzzles:AddButton({Title = "Comprar Hakis & Geppo", Callback = function() 
-    local r = game:GetService("ReplicatedStorage").Remotes.CommF_
-    r:InvokeServer("BuyHaki","Buso"); r:InvokeServer("BuyHaki","SkyJump"); r:InvokeServer("BuyHaki","Soru"); r:InvokeServer("BuyHaki","Observation")
-end})
-
--- FRUIT INTERFACE
-Tabs.Fruit:AddButton({Title = "Girar Fruta (Remoto)", Callback = function() game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Cousin","Buy") end})
-Tabs.Fruit:AddToggle("FESPT", {Title = "ESP Frutas + Distância", Default = false, Callback = function(v) _G.FruitESP = v end})
-Tabs.Fruit:AddToggle("CTweenT", {Title = "Coletar Voando (Seguro)", Default = false, Callback = function(v) _G.AutoCollectTween = v end})
-Tabs.Fruit:AddToggle("CPullT", {Title = "❗ Puxar Fruta (Agressivo/Ban)", Default = false, Callback = function(v) _G.AutoCollectPull = v end})
-
--- LOOPS PRINCIPAIS
+-- 1. AUTO ATAQUE
 spawn(function()
     while task.wait(0.1) do
-        if _G.AutoFarm and not _G.FruitLock then
+        if _G.AutoAttack then
             pcall(function()
-                local qN, qI, mN, qP, fP = GetQuest()
+                local player = game.Players.LocalPlayer
+                local char = player.Character
+                local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
+                if tool and not char:FindFirstChild(tool.Name) then
+                    char.Humanoid:EquipTool(tool)
+                end
+                if tool then tool:Activate() end
+            end)
+        end
+    end
+end)
+
+-- FUNÇÃO NOCLIP TEMPORÁRIO
+local function NoclipPart(part)
+    if part:IsA("BasePart") then
+        part.CanCollide = false
+        task.delay(0.5, function()
+            if part then
+                part.CanCollide = true
+            end
+        end)
+    end
+end
+
+-- TABELA DE QUEST POR NÍVEL (SEA 1)
+local QuestTable = {
+    {Min = 0, Max = 9, Quest = "BanditQuest1", ID = 1, Mob = "Bandit", QuestPos = CFrame.new(1059,16,1546), FarmPos = CFrame.new(1145,16,1630)},
+    {Min = 10, Max = 14, Quest = "JungleQuest", ID = 1, Mob = "Monkey", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1612,36,147)},
+    {Min = 15, Max = 29, Quest = "JungleQuest", ID = 2, Mob = "Gorilla", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1240,6,497)},
+    {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,5,3900)},
+    {Min = 40, Max = 59, Quest = "BuggyQuest1", ID = 2, Mob = "Brute", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1340,5,4120)},
+}
+
+local function GetQuestByLevel(level)
+    for _, q in pairs(QuestTable) do
+        if level >= q.Min and level <= q.Max then
+            return q
+        end
+    end
+end
+
+-- 2. AUTO FARM DINÂMICO (SEA 1)
+spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoFarm then
+            pcall(function()
                 local lp = game.Players.LocalPlayer
+                local lvl = lp.Data.Level.Value
+                local char = lp.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+                -- Noclip temporário
+                for _, v in pairs(char:GetChildren()) do
+                    NoclipPart(v)
+                end
+
+                local quest = GetQuestByLevel(lvl)
+                if not quest then return end
+
                 if not lp.PlayerGui.Main.Quest.Visible then
-                    SmoothMove(qP * CFrame.new(0,10,0))
-                    if (lp.Character.HumanoidRootPart.Position - qP.Position).Magnitude < 15 then game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", qN, qI) end
+                    SmoothMove(quest.QuestPos)
+                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 10 then
+                        task.wait(0.5)
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.Quest, quest.ID)
+                    end
                 else
-                    local t = workspace.Enemies:FindFirstChild(mN) or workspace.Enemies:FindFirstChild(mN.." [Lv. "..lp.Data.Level.Value.."]")
-                    if t and t:FindFirstChild("Humanoid") and t.Humanoid.Health > 0 then SmoothMove(t.HumanoidRootPart.CFrame * CFrame.new(0,12,0)) else SmoothMove(fP * CFrame.new(0,20,0)) end
+                    -- LÓGICA DE ALVO
+                    local target = nil
+                    for _, v in pairs(workspace.Enemies:GetChildren()) do
+                        if v.Name == quest.Mob and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                            target = v
+                            break
+                        end
+                    end
+
+                    if target then
+                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
+                    else
+                        SmoothMove(quest.FarmPos)
+                    end
                 end
             end)
         end
-        if _G.AutoAttack then
-            local c = game.Players.LocalPlayer.Character
-            local t = c and (c:FindFirstChildOfClass("Tool") or game.Players.LocalPlayer.Backpack:FindFirstChildOfClass("Tool"))
-            if t then if not c:FindFirstChild(t.Name) then c.Humanoid:EquipTool(t) end; t:Activate() end
-        end
-        if _G.TPPlayer and _G.TargetPlayer ~= "" then
-            local tc = game.Players[_G.TargetPlayer].Character
-            if tc then SmoothMove(tc.HumanoidRootPart.CFrame * CFrame.new(0,5,0), 400) end
-        end
-        if _G.AutoBoss and _G.TargetBoss ~= "" then
-            local b = workspace.Enemies:FindFirstChild(_G.TargetBoss)
-            if b then SmoothMove(b.HumanoidRootPart.CFrame * CFrame.new(0,12,0)) end
+    end
+end)
+
+-- ESP DE FRUTAS E AUTO COLLECT
+spawn(function()
+    while task.wait(0.5) do
+        local char = game.Players.LocalPlayer.Character
+        if _G.FruitESP and char then
+            for _, v in pairs(workspace:GetChildren()) do
+                if v:IsA("Tool") and v:FindFirstChild("Handle") then
+                    -- ESP
+                    if not v.Handle:FindFirstChild("FruitESP") then
+                        local gui = Instance.new("BillboardGui", v.Handle)
+                        gui.Name = "FruitESP"
+                        gui.Size = UDim2.new(0, 100, 0, 40)
+                        gui.AlwaysOnTop = true
+                        local txt = Instance.new("TextLabel", gui)
+                        txt.Size = UDim2.new(1,0,1,0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = "🍎 " .. v.Name
+                        txt.TextColor3 = Color3.fromRGB(255,0,0)
+                        txt.TextScaled = true
+                    end
+                    -- AUTO COLLECT
+                    v.Handle.CFrame = char.HumanoidRootPart.CFrame
+                end
+            end
         end
     end
 end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    if _G.Aimlock and _G.TargetPlayer ~= "" then
-        local tc = game.Players[_G.TargetPlayer].Character
-        if tc then workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, tc.HumanoidRootPart.Position) end
+-- PLAYER ESP
+spawn(function()
+    while task.wait(1) do
+        if _G.PlayerESP then
+            for _, plr in pairs(game.Players:GetPlayers()) do
+                if plr ~= game.Players.LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = plr.Character.HumanoidRootPart
+                    if not hrp:FindFirstChild("PlayerESP") then
+                        local gui = Instance.new("BillboardGui", hrp)
+                        gui.Name = "PlayerESP"
+                        gui.Size = UDim2.new(0,100,0,40)
+                        gui.AlwaysOnTop = true
+                        local txt = Instance.new("TextLabel", gui)
+                        txt.Size = UDim2.new(1,0,1,0)
+                        txt.BackgroundTransparency = 1
+                        txt.Text = plr.Name
+                        txt.TextColor3 = Color3.fromRGB(0,255,0)
+                        txt.TextScaled = true
+                    end
+                end
+            end
+        end
     end
 end)
 
--- ABA FARM & STATS
-Tabs.Main:AddToggle("AF_T", {Title = "Auto Farm Nível", Default = false, Callback = function(v) _G.AutoFarm = v end})
-Tabs.Main:AddToggle("AT_T", {Title = "Auto Clique", Default = false, Callback = function(v) _G.AutoAttack = v end})
-Tabs.Main:AddDropdown("SS_D", {Title = "Focar Status em:", Values = {"Melee", "Defense", "Sword", "Blox Fruit"}, Default = "Melee", Callback = function(v) _G.StatSelect = v end})
-Tabs.Main:AddToggle("AS_T", {Title = "Ativar Auto Stats", Default = false, Callback = function(v) _G.AutoStats = v end})
+-- INTERFACE DE CONTROLE
+Tabs.Main:AddToggle("FarmToggle", {
+    Title = "Auto Farm (Quest Inteligente)",
+    Default = false,
+    Callback = function(v) _G.AutoFarm = v end
+})
+
+Tabs.Main:AddToggle("AttackToggle", {
+    Title = "Auto Clique",
+    Default = false,
+    Callback = function(v) _G.AutoAttack = v end
+})
+
+Tabs.Visuals:AddToggle("FruitESPToggle", {
+    Title = "ESP de Frutas",
+    Default = false,
+    Callback = function(v) _G.FruitESP = v end
+})
+
+Tabs.Visuals:AddToggle("PlayerESPToggle", {
+    Title = "ESP de Players",
+    Default = false,
+    Callback = function(v) _G.PlayerESP = v end
+})
 
 Window:SelectTab(1)
