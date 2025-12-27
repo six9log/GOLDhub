@@ -2,11 +2,12 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "v2.3 - Fixed Minimize",
+    SubTitle = "v2.4 - No Floating Button",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
-    Theme = "Dark"
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightControl -- CONFIGURAÇÃO PARA MINIMIZAR NO CTRL DIREITO
 })
 
 local Tabs = { 
@@ -22,33 +23,6 @@ _G.AutoCollectFruit = false
 _G.AutoStoreFruit = false
 
 local CurrentTween = nil
-
--- BOTÃO DE MINIMIZAR (USANDO FUNÇÃO INTERNA DA BILIOTECA)
-local FloatGui = Instance.new("ScreenGui")
-FloatGui.Name = "FloatToggleGui"
-FloatGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-FloatGui.ResetOnSpawn = false
-
-local Button = Instance.new("TextButton")
-Button.Parent = FloatGui
-Button.Size = UDim2.new(0, 50, 0, 50)
-Button.Position = UDim2.new(0, 10, 0.5, -25)
-Button.Text = "GOLD"
-Button.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-Button.TextColor3 = Color3.fromRGB(0, 0, 0)
-Button.Font = Enum.Font.SourceSansBold
-Button.TextSize = 14
-Button.Draggable = true
-Button.Active = true
-Instance.new("UICorner", Button).CornerRadius = UDim.new(1, 0)
-
--- Esta é a forma mais segura de alternar a visibilidade no Fluent
-Button.MouseButton1Click:Connect(function()
-    local FluentGui = game:GetService("CoreGui"):FindFirstChild("Fluent") or game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("Fluent")
-    if FluentGui then
-        FluentGui.Enabled = not FluentGui.Enabled
-    end
-end)
 
 -- FUNÇÃO DE VOO ESTABILIZADA
 function SmoothMove(TargetCFrame)
@@ -75,11 +49,12 @@ function SmoothMove(TargetCFrame)
     end
 end
 
--- TABELA DE QUESTS ATUALIZADA
+-- TABELA DE QUESTS (SEA 1)
 local QuestTable = {
     {Min = 0, Max = 9, Quest = "BanditQuest1", ID = 1, Mob = "Bandit", QuestPos = CFrame.new(1059,16,1546), FarmPos = CFrame.new(1145,25,1630)},
     {Min = 10, Max = 14, Quest = "JungleQuest", ID = 1, Mob = "Monkey", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1612,36,147)},
     {Min = 15, Max = 29, Quest = "JungleQuest", ID = 2, Mob = "Gorilla", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1240,15,497)},
+    {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,5,3900)},
 }
 
 local function GetQuestByLevel(level)
@@ -136,7 +111,6 @@ spawn(function()
                     if target then
                         SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
                     else
-                        -- Se o mob não existir, voa alto para o centro da área de spawn
                         SmoothMove(quest.FarmPos * CFrame.new(0, 20, 0))
                     end
                 end
@@ -212,3 +186,10 @@ Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar", Default = false
 Tabs.Visuals:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
 
 Window:SelectTab(1)
+
+-- Notificação para o usuário saber como abrir
+Fluent:Notify({
+    Title = "GOLD HUB",
+    Content = "Aperte 'RightControl' para abrir/fechar o menu!",
+    Duration = 5
+})
