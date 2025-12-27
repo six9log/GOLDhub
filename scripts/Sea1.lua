@@ -1,264 +1,112 @@
---[[
-    GOLD HUB | SEA 1
-    v1.9 - Auto Quest System
-    Interface: Fluent
-]]
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-
-local Window = Fluent:CreateWindow({
-    Title = "GOLD HUB | SEA 1",
-    SubTitle = "v1.9 - Auto Quest System",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = false,
-    Theme = "Dark"
+local Window = Rayfield:CreateWindow({
+   Name = "👑 GOLD HUB | SEA 1 EDITION",
+   LoadingTitle = "Carregando Módulos Sea 1...",
+   LoadingSubtitle = "by Gemini AI",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "GoldHubSea1",
+      FileName = "Config"
+   }
 })
 
-local Tabs = { 
-    Main = Window:AddTab({ Title = "Farm", Icon = "home" }),
-    Visuals = Window:AddTab({ Title = "Visual & Frutas", Icon = "apple" })
-}
-
+-- [[ VARIÁVEIS ]]
+local LP = game.Players.LocalPlayer
+local RS = game:GetService("ReplicatedStorage")
+local CommF = RS.Remotes.CommF_
 _G.AutoFarm = false
-_G.AutoAttack = false
-_G.FruitESP = false
-_G.PlayerESP = false
+_G.AutoStats = false
 
-local CurrentTween = nil
+-- [[ ABAS ]]
+local TabFarm = Window:CreateTab("Auto Farm 🚜", 4483362458)
+local TabCombat = Window:CreateTab("Combate ⚔️", 4483362458)
+local TabTeleport = Window:CreateTab("Teleportes 🌍", 4483362458)
 
--- BOTÃO FLUTUANTE REDONDO PARA MINIMIZAR/ABRIR MENU
-local UIS = game:GetService("UserInputService")
-local PlayerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+-- [[ ABA AUTO FARM ]]
+TabFarm:CreateSection("Farm de Nível")
 
-local FloatGui = Instance.new("ScreenGui")
-FloatGui.Name = "FloatToggleGui"
-FloatGui.Parent = PlayerGui
-FloatGui.ResetOnSpawn = false
-
-local Button = Instance.new("TextButton")
-Button.Parent = FloatGui
-Button.Size = UDim2.new(0, 55, 0, 55)
-Button.Position = UDim2.new(0, 20, 0.5, -25)
-Button.Text = "☰"
-Button.TextSize = 28
-Button.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-Button.TextColor3 = Color3.fromRGB(0, 0, 0)
-Button.BorderSizePixel = 0
-Button.AutoButtonColor = true
-Button.Draggable = true
-Button.Active = true
-
-local Corner = Instance.new("UICorner", Button)
-Corner.CornerRadius = UDim.new(1, 0)
-
-local Stroke = Instance.new("UIStroke", Button)
-Stroke.Thickness = 2
-Stroke.Color = Color3.fromRGB(0, 0, 0)
-
-local MenuVisible = true
-Button.MouseButton1Click:Connect(function()
-    MenuVisible = not MenuVisible
-    Window:SetVisible(MenuVisible)
-end)
-
--- FUNÇÃO DE VOO ESTABILIZADA
-function SmoothMove(TargetCFrame)
-    local Character = game.Players.LocalPlayer.Character
-    local Root = Character:FindFirstChild("HumanoidRootPart")
-    local Hum = Character:FindFirstChildOfClass("Humanoid")
-    
-    if Root and Hum and _G.AutoFarm then
-        if Hum:GetState() ~= Enum.HumanoidStateType.Physics then
-            Hum:ChangeState(Enum.HumanoidStateType.Physics)
-        end
-        Root.Velocity = Vector3.new(0,0,0)
-        Root.RotVelocity = Vector3.new(0,0,0)
-
-        local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        local Speed = 250 
-        
-        if CurrentTween then CurrentTween:Cancel() end
-        
-        CurrentTween = game:GetService("TweenService"):Create(
-            Root,
-            TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),
-            {CFrame = TargetCFrame}
-        )
-        CurrentTween:Play()
-    elseif not _G.AutoFarm then
-        if CurrentTween then CurrentTween:Cancel() end
-        if Hum then Hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
-    end
-end
-
--- 1. AUTO ATAQUE
-spawn(function()
-    while task.wait(0.1) do
-        if _G.AutoAttack then
+TabFarm:CreateToggle({
+   Name = "Auto Farm Level (Sea 1)",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.AutoFarm = Value
+      spawn(function()
+         while _G.AutoFarm do
             pcall(function()
-                local player = game.Players.LocalPlayer
-                local char = player.Character
-                local tool = char:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChildOfClass("Tool")
-                if tool and not char:FindFirstChild(tool.Name) then
-                    char.Humanoid:EquipTool(tool)
-                end
-                if tool then tool:Activate() end
+               -- Lógica simplificada de busca de Quest e NPC do Sea 1
+               local enemy = workspace.Enemies:FindFirstChildOfClass("Model")
+               if enemy and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+                  repeat
+                     wait()
+                     -- Posição segura em cima do mob
+                     LP.Character.HumanoidRootPart.CFrame = enemy.HumanoidRootPart.CFrame * CFrame.new(0, 20, 0)
+                     game:GetService("VirtualUser"):CaptureController()
+                     game:GetService("VirtualUser"):ClickButton1(Vector2.new(851, 158))
+                  until not _G.AutoFarm or enemy.Humanoid.Health <= 0
+               end
             end)
-        end
-    end
-end)
+            wait(1)
+         end
+      end)
+   end,
+})
 
--- FUNÇÃO NOCLIP TEMPORÁRIO
-local function NoclipPart(part)
-    if part:IsA("BasePart") then
-        part.CanCollide = false
-        task.delay(0.5, function()
-            if part then
-                part.CanCollide = true
+TabFarm:CreateToggle({
+   Name = "Auto Stats (Points)",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.AutoStats = Value
+      spawn(function()
+         while _G.AutoStats do
+            wait(2)
+            local points = LP.Data.StatsPoints.Value
+            if points > 0 then
+                CommF:InvokeServer("AddPoint", "Melee", points)
             end
-        end)
-    end
-end
+         end
+      end)
+   end,
+})
 
--- TABELA DE QUEST POR NÍVEL (SEA 1)
-local QuestTable = {
-    {Min = 0, Max = 9, Quest = "BanditQuest1", ID = 1, Mob = "Bandit", QuestPos = CFrame.new(1059,16,1546), FarmPos = CFrame.new(1145,16,1630)},
-    {Min = 10, Max = 14, Quest = "JungleQuest", ID = 1, Mob = "Monkey", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1612,36,147)},
-    {Min = 15, Max = 29, Quest = "JungleQuest", ID = 2, Mob = "Gorilla", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1240,6,497)},
-    {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,5,3900)},
-    {Min = 40, Max = 59, Quest = "BuggyQuest1", ID = 2, Mob = "Brute", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1340,5,4120)},
+-- [[ ABA COMBATE ]]
+TabCombat:CreateSection("Auxílios de Luta")
+
+TabCombat:CreateToggle({
+   Name = "Auto Haki de Armamento",
+   CurrentValue = true,
+   Callback = function(Value)
+      _G.AutoHaki = Value
+      spawn(function()
+         while _G.AutoHaki do
+            wait(5)
+            if not LP.Character:FindFirstChild("HasBuso") then
+               CommF:InvokeServer("Buso")
+            end
+         end
+      end)
+   end,
+})
+
+-- [[ ABA TELEPORTES ]]
+TabTeleport:CreateSection("Ilhas Principais Sea 1")
+
+local Islands = {
+   ["Início (Pirates/Marines)"] = CFrame.new(1060, 16, 1420),
+   ["Selva (Jungle)"] = CFrame.new(-1250, 6, 350),
+   ["Deserto"] = CFrame.new(900, 6, 4400),
+   ["Vila de Neve"] = CFrame.new(1200, 6, -1300),
+   ["Marineford"] = CFrame.new(-4500, 20, 4200),
+   ["Skypiea (Céu)"] = CFrame.new(-4800, 900, -1900)
 }
 
-local function GetQuestByLevel(level)
-    for _, q in pairs(QuestTable) do
-        if level >= q.Min and level <= q.Max then
-            return q
-        end
-    end
+for name, cf in pairs(Islands) do
+   TabTeleport:CreateButton({
+      Name = "Ir para: "..name,
+      Callback = function()
+         LP.Character.HumanoidRootPart.CFrame = cf
+      end,
+   })
 end
 
--- 2. AUTO FARM DINÂMICO (SEA 1)
-spawn(function()
-    while task.wait(0.1) do
-        if _G.AutoFarm then
-            pcall(function()
-                local lp = game.Players.LocalPlayer
-                local lvl = lp.Data.Level.Value
-                local char = lp.Character
-                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-
-                -- Noclip temporário
-                for _, v in pairs(char:GetChildren()) do
-                    NoclipPart(v)
-                end
-
-                local quest = GetQuestByLevel(lvl)
-                if not quest then return end
-
-                if not lp.PlayerGui.Main.Quest.Visible then
-                    SmoothMove(quest.QuestPos)
-                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 10 then
-                        task.wait(0.5)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.Quest, quest.ID)
-                    end
-                else
-                    -- LÓGICA DE ALVO
-                    local target = nil
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == quest.Mob and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                            target = v
-                            break
-                        end
-                    end
-
-                    if target then
-                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
-                    else
-                        SmoothMove(quest.FarmPos)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ESP DE FRUTAS E AUTO COLLECT
-spawn(function()
-    while task.wait(0.5) do
-        local char = game.Players.LocalPlayer.Character
-        if _G.FruitESP and char then
-            for _, v in pairs(workspace:GetChildren()) do
-                if v:IsA("Tool") and v:FindFirstChild("Handle") then
-                    -- ESP
-                    if not v.Handle:FindFirstChild("FruitESP") then
-                        local gui = Instance.new("BillboardGui", v.Handle)
-                        gui.Name = "FruitESP"
-                        gui.Size = UDim2.new(0, 100, 0, 40)
-                        gui.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", gui)
-                        txt.Size = UDim2.new(1,0,1,0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = "🍎 " .. v.Name
-                        txt.TextColor3 = Color3.fromRGB(255,0,0)
-                        txt.TextScaled = true
-                    end
-                    -- AUTO COLLECT
-                    v.Handle.CFrame = char.HumanoidRootPart.CFrame
-                end
-            end
-        end
-    end
-end)
-
--- PLAYER ESP
-spawn(function()
-    while task.wait(1) do
-        if _G.PlayerESP then
-            for _, plr in pairs(game.Players:GetPlayers()) do
-                if plr ~= game.Players.LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                    local hrp = plr.Character.HumanoidRootPart
-                    if not hrp:FindFirstChild("PlayerESP") then
-                        local gui = Instance.new("BillboardGui", hrp)
-                        gui.Name = "PlayerESP"
-                        gui.Size = UDim2.new(0,100,0,40)
-                        gui.AlwaysOnTop = true
-                        local txt = Instance.new("TextLabel", gui)
-                        txt.Size = UDim2.new(1,0,1,0)
-                        txt.BackgroundTransparency = 1
-                        txt.Text = plr.Name
-                        txt.TextColor3 = Color3.fromRGB(0,255,0)
-                        txt.TextScaled = true
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- INTERFACE DE CONTROLE
-Tabs.Main:AddToggle("FarmToggle", {
-    Title = "Auto Farm (Quest Inteligente)",
-    Default = false,
-    Callback = function(v) _G.AutoFarm = v end
-})
-
-Tabs.Main:AddToggle("AttackToggle", {
-    Title = "Auto Clique",
-    Default = false,
-    Callback = function(v) _G.AutoAttack = v end
-})
-
-Tabs.Visuals:AddToggle("FruitESPToggle", {
-    Title = "ESP de Frutas",
-    Default = false,
-    Callback = function(v) _G.FruitESP = v end
-})
-
-Tabs.Visuals:AddToggle("PlayerESPToggle", {
-    Title = "ESP de Players",
-    Default = false,
-    Callback = function(v) _G.PlayerESP = v end
-})
-
-Window:SelectTab(1)
+Rayfield:Notify({Title = "GOLD HUB SEA 1", Content = "Script carregado com sucesso!", Duration = 5})
