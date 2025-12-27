@@ -2,12 +2,12 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 
 local Window = Fluent:CreateWindow({
     Title = "GOLD HUB | SEA 1",
-    SubTitle = "v2.4 - No Floating Button",
+    SubTitle = "v2.5 - Safe Farm Edition",
     TabWidth = 160,
     Size = UDim2.fromOffset(580, 460),
     Acrylic = false,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightControl -- CONFIGURAÇÃO PARA MINIMIZAR NO CTRL DIREITO
+    MinimizeKey = Enum.KeyCode.Home -- CONFIGURADO PARA A TECLA HOME
 })
 
 local Tabs = { 
@@ -24,7 +24,7 @@ _G.AutoStoreFruit = false
 
 local CurrentTween = nil
 
--- FUNÇÃO DE VOO ESTABILIZADA
+-- FUNÇÃO DE VOO ULTRA ESTABILIZADA
 function SmoothMove(TargetCFrame)
     local Character = game.Players.LocalPlayer.Character
     local Root = Character and Character:FindFirstChild("HumanoidRootPart")
@@ -38,7 +38,7 @@ function SmoothMove(TargetCFrame)
         Root.RotVelocity = Vector3.new(0,0,0)
 
         local Distance = (TargetCFrame.Position - Root.Position).Magnitude
-        local Speed = 250 
+        local Speed = 220 -- Velocidade mais segura para evitar danos de queda/água
         
         if CurrentTween then CurrentTween:Cancel() end
         CurrentTween = game:GetService("TweenService"):Create(Root, TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear), {CFrame = TargetCFrame})
@@ -49,12 +49,14 @@ function SmoothMove(TargetCFrame)
     end
 end
 
--- TABELA DE QUESTS (SEA 1)
+-- TABELA DE QUESTS EXPANDIDA (SEA 1)
 local QuestTable = {
     {Min = 0, Max = 9, Quest = "BanditQuest1", ID = 1, Mob = "Bandit", QuestPos = CFrame.new(1059,16,1546), FarmPos = CFrame.new(1145,25,1630)},
     {Min = 10, Max = 14, Quest = "JungleQuest", ID = 1, Mob = "Monkey", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1612,36,147)},
     {Min = 15, Max = 29, Quest = "JungleQuest", ID = 2, Mob = "Gorilla", QuestPos = CFrame.new(-1598,37,153), FarmPos = CFrame.new(-1240,15,497)},
-    {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,5,3900)},
+    {Min = 30, Max = 39, Quest = "BuggyQuest1", ID = 1, Mob = "Pirate", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1210,15,3900)},
+    {Min = 40, Max = 59, Quest = "BuggyQuest1", ID = 2, Mob = "Brute", QuestPos = CFrame.new(-1141,4,3828), FarmPos = CFrame.new(-1340,15,4120)},
+    {Min = 60, Max = 74, Quest = "DesertQuest", ID = 1, Mob = "Desert Bandit", QuestPos = CFrame.new(896,28,4391), FarmPos = CFrame.new(1000,28,4400)},
 }
 
 local function GetQuestByLevel(level)
@@ -63,7 +65,47 @@ local function GetQuestByLevel(level)
     end
 end
 
--- 1. AUTO ATAQUE
+-- AUTO FARM (AJUSTADO PARA NÃO MORRER)
+spawn(function()
+    while task.wait(0.1) do
+        if _G.AutoFarm then
+            pcall(function()
+                local lp = game.Players.LocalPlayer
+                local char = lp.Character
+                local quest = GetQuestByLevel(lp.Data.Level.Value)
+                if not char or not char:FindFirstChild("HumanoidRootPart") or not quest then return end
+
+                -- NOCLIP TOTAL
+                for _, v in pairs(char:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide = false end
+                end
+
+                if not lp.PlayerGui.Main.Quest.Visible then
+                    SmoothMove(quest.QuestPos * CFrame.new(0, 10, 0)) -- Chega por cima do NPC
+                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 15 then
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.Quest, quest.ID)
+                    end
+                else
+                    local target = nil
+                    for _, v in pairs(workspace.Enemies:GetChildren()) do
+                        if v.Name == quest.Mob and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                            target = v
+                            break
+                        end
+                    end
+                    if target then
+                        -- FARM SEGURO: Fica 10 studs acima do inimigo para ele não te acertar
+                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 10, 0))
+                    else
+                        SmoothMove(quest.FarmPos * CFrame.new(0, 25, 0)) -- Espera o respawn no alto
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- AUTO ATAQUE
 spawn(function()
     while task.wait(0.1) do
         if _G.AutoAttack then
@@ -80,46 +122,7 @@ spawn(function()
     end
 end)
 
--- 2. AUTO FARM
-spawn(function()
-    while task.wait(0.1) do
-        if _G.AutoFarm then
-            pcall(function()
-                local lp = game.Players.LocalPlayer
-                local char = lp.Character
-                local quest = GetQuestByLevel(lp.Data.Level.Value)
-                if not char or not char:FindFirstChild("HumanoidRootPart") or not quest then return end
-
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") then v.CanCollide = false end
-                end
-
-                if not lp.PlayerGui.Main.Quest.Visible then
-                    SmoothMove(quest.QuestPos * CFrame.new(0, 5, 0))
-                    if (char.HumanoidRootPart.Position - quest.QuestPos.Position).Magnitude < 15 then
-                        task.wait(0.5)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", quest.Quest, quest.ID)
-                    end
-                else
-                    local target = nil
-                    for _, v in pairs(workspace.Enemies:GetChildren()) do
-                        if v.Name == quest.Mob and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                            target = v
-                            break
-                        end
-                    end
-                    if target then
-                        SmoothMove(target.HumanoidRootPart.CFrame * CFrame.new(0, 8, 0))
-                    else
-                        SmoothMove(quest.FarmPos * CFrame.new(0, 20, 0))
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- 3. ESP E FRUTAS
+-- ESP E FRUTAS (COLLECT & STORE)
 spawn(function()
     while task.wait(0.5) do
         if _G.FruitESP or _G.AutoCollectFruit then
@@ -147,7 +150,7 @@ spawn(function()
     end
 end)
 
--- 4. PLAYER ESP
+-- PLAYER ESP
 spawn(function()
     while task.wait(1) do
         if _G.PlayerESP then
@@ -174,22 +177,20 @@ spawn(function()
 end)
 
 -- INTERFACE
-Tabs.Main:AddToggle("FarmToggle", {Title = "Auto Farm", Default = false, Callback = function(v) _G.AutoFarm = v end})
-Tabs.Main:AddToggle("AttackToggle", {Title = "Auto Clique", Default = false, Callback = function(v) _G.AutoAttack = v end})
+local MainTab = Tabs.Main
+MainTab:AddToggle("FarmToggle", {Title = "Auto Farm (Modo Seguro)", Default = false, Callback = function(v) _G.AutoFarm = v end})
+MainTab:AddToggle("AttackToggle", {Title = "Auto Clique", Default = false, Callback = function(v) _G.AutoAttack = v end})
 
-Tabs.Visuals:AddSection("ESP")
-Tabs.Visuals:AddToggle("PlayerESPToggle", {Title = "ESP Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
-Tabs.Visuals:AddToggle("FruitESPToggle", {Title = "ESP Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
-
-Tabs.Visuals:AddSection("Frutas")
-Tabs.Visuals:AddToggle("CollectToggle", {Title = "Auto Coletar", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
-Tabs.Visuals:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
+local VisualTab = Tabs.Visuals
+VisualTab:AddToggle("PlayerESPToggle", {Title = "ESP Jogadores", Default = false, Callback = function(v) _G.PlayerESP = v end})
+VisualTab:AddToggle("FruitESPToggle", {Title = "ESP Frutas", Default = false, Callback = function(v) _G.FruitESP = v end})
+VisualTab:AddToggle("CollectToggle", {Title = "Auto Coletar", Default = false, Callback = function(v) _G.AutoCollectFruit = v end})
+VisualTab:AddToggle("StoreToggle", {Title = "Auto Armazenar", Default = false, Callback = function(v) _G.AutoStoreFruit = v end})
 
 Window:SelectTab(1)
 
--- Notificação para o usuário saber como abrir
 Fluent:Notify({
     Title = "GOLD HUB",
-    Content = "Aperte 'RightControl' para abrir/fechar o menu!",
+    Content = "Menu: Tecla 'HOME'. Farm Seguro Ativado!",
     Duration = 5
 })
